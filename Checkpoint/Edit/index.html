@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint — publier une version</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FF9A57">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23FF9A57'/%3E%3Cpath d='M 20 5.5 A 14.5 14.5 0 1 1 7.44 12.75' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3Ccircle cx='7.44' cy='12.75' r='3.4' fill='white'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --cyan: #4FD6E8; --teal: #2BBBC9; --amber: #FFB648;
+  --coral: #FF7E6B; --indigo: #5A5BD8; --white: #FFFFFF;
+  --ink: #1D2433; --dim: #6B7689; --line: #E4E8EF;
+  --display: "Outfit", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  background: linear-gradient(128deg, var(--coral) 0%, var(--amber) 38%, var(--teal) 72%, var(--indigo) 100%);
+  font-family: var(--display);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  width: min(100%, 540px);
+  padding: clamp(24px, 4vw, 36px);
+  border-radius: 24px;
+  background: var(--white);
+  box-shadow: 0 26px 70px rgba(40, 20, 10, 0.26);
+}
+
+.brand {
+  display: inline-flex; align-items: center;
+  font-size: 21px; font-weight: 700; letter-spacing: -0.035em;
+  color: var(--ink);
+}
+.brand svg { width: 1.02em; height: 1.02em; margin: 0 -0.005em; translate: 0 0.055em; }
+
+h1 { margin-top: 16px; font-size: 25px; font-weight: 700; letter-spacing: -0.03em; }
+.lede { margin-top: 8px; font-size: 14.5px; line-height: 1.55; color: var(--dim); }
+
+code {
+  padding: 2px 6px; border-radius: 5px;
+  background: #F0F3F8;
+  font-family: var(--mono); font-size: 11.5px;
+}
+
+/* ------------------------------------------------------------- dépôt ---- */
+
+.drop {
+  display: grid; place-items: center; gap: 8px;
+  margin-top: 22px;
+  padding: 30px 20px;
+  border: 2px dashed var(--line);
+  border-radius: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+.drop:hover, .drop.over { border-color: var(--amber); background: #FFF9F0; }
+.drop:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+.drop strong { font-size: 15.5px; font-weight: 600; }
+.drop span { font-size: 13px; color: var(--dim); }
+.drop svg { width: 30px; height: 30px; color: var(--amber); }
+
+input[type="file"] { display: none; }
+
+.picked {
+  display: none;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #F5F8FC;
+}
+.picked.on { display: block; }
+.picked dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; }
+.picked dt { color: var(--dim); }
+.picked dd { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+.warn { margin-top: 10px; font-size: 12.5px; line-height: 1.5; color: #A8621B; }
+
+/* ------------------------------------------------------------ bouton ---- */
+
+.go {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  border: 0; border-radius: 14px;
+  background: linear-gradient(120deg, #FF9440, #FF5F63);
+  color: var(--white);
+  font-family: inherit; font-size: 15.5px; font-weight: 600;
+  cursor: pointer;
+  transition: filter 180ms ease, transform 140ms ease;
+}
+.go:disabled { background: #DFE4EC; color: #9AA4B4; cursor: not-allowed; }
+.go:not(:disabled):hover { filter: brightness(1.06); }
+.go:not(:disabled):active { transform: scale(0.985); }
+.go:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+
+.msg { margin-top: 12px; font-size: 13px; line-height: 1.5; min-height: 1.2em; }
+.msg.err { color: #C2413B; }
+.msg.ok { color: #1F8B57; }
+
+/* ------------------------------------------------------------ étapes ---- */
+
+.steps { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
+.steps h2 {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--dim);
+}
+.steps ol { margin-top: 12px; padding-left: 18px; display: grid; gap: 9px; }
+.steps li { font-size: 13.5px; line-height: 1.55; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.1s !important; }
+}
+</style>
+</head>
+
+<body>
+<main class="card">
+
+  <span class="brand">CheckP<svg viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M 20 5.5 A 14.5 14.5 0 1 1 7.44 12.75" fill="none" stroke="currentColor"
+            stroke-width="4.6" stroke-linecap="round"></path>
+      <circle cx="7.44" cy="12.75" r="3.4" fill="currentColor"></circle>
+    </svg>int</span>
+
+  <h1>Publier une nouvelle version</h1>
+  <p class="lede">Choisissez le programme d'installation. Cette page reprend le gabarit du site
+     et vous rend un <code>index.html</code> dont le bouton pointe vers ce fichier précis.</p>
+
+  <div class="drop" id="drop" tabindex="0" role="button"
+       aria-label="Choisir le programme d'installation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M4 20h16"></path>
+    </svg>
+    <strong>Déposer le fichier .exe</strong>
+    <span>ou cliquer pour le choisir</span>
+  </div>
+  <input type="file" id="file" accept=".exe">
+
+  <div class="picked" id="picked">
+    <dl>
+      <dt>Fichier</dt><dd id="pname">—</dd>
+      <dt>Poids</dt><dd id="psize">—</dd>
+      <dt>Lien généré</dt><dd id="phref">—</dd>
+    </dl>
+    <p class="warn" id="warn" hidden></p>
+  </div>
+
+  <button class="go" id="go" type="button" disabled>Télécharger index.html</button>
+  <p class="msg" id="msg"></p>
+
+  <section class="steps">
+    <h2>Ensuite, sur GitHub</h2>
+    <ol>
+      <li>Déposez le <strong>.exe</strong> dans le dossier <code>Projects/Checkpoint/</code>.</li>
+      <li>Remplacez l'<code>index.html</code> du même dossier par celui que vous venez de télécharger.</li>
+      <li>Le site est à jour en une minute environ. Le fichier de la version précédente peut être supprimé.</li>
+    </ol>
+  </section>
+
+</main>
+
+<script>
+const drop   = document.getElementById("drop");
+const input  = document.getElementById("file");
+const picked = document.getElementById("picked");
+const pname  = document.getElementById("pname");
+const psize  = document.getElementById("psize");
+const phref  = document.getElementById("phref");
+const warn   = document.getElementById("warn");
+const go     = document.getElementById("go");
+const msg    = document.getElementById("msg");
+
+let choisi = null;
+
+const poids = (o) => (o / 1024 / 1024).toFixed(1).replace(".", ",") + " Mo";
+
+function dire(texte, type) {
+  msg.textContent = texte;
+  msg.className = "msg" + (type ? " " + type : "");
+}
+
+function prendre(fichier) {
+  if (!fichier) return;
+  if (!/\.exe$/i.test(fichier.name)) {
+    dire("Ce n'est pas un fichier .exe.", "err");
+    return;
+  }
+  choisi = fichier;
+  pname.textContent = fichier.name;
+  psize.textContent = poids(fichier.size);
+  phref.textContent = encodeURI(fichier.name);
+  picked.classList.add("on");
+  go.disabled = false;
+  dire("");
+
+  /* GitHub refuse les fichiers de plus de 100 Mo dans un dépôt. */
+  const trop = fichier.size > 100 * 1024 * 1024;
+  warn.hidden = !trop;
+  if (trop) warn.textContent =
+    "Ce fichier dépasse 100 Mo : GitHub refusera de l'héberger dans le dépôt. "
+  + "Passez par une release, ou allégez le programme d'installation.";
+}
+
+drop.addEventListener("click", () => input.click());
+drop.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+});
+input.addEventListener("change", () => prendre(input.files[0]));
+
+["dragenter", "dragover"].forEach((e) =>
+  drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((e) =>
+  drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (ev) => prendre(ev.dataTransfer.files[0]));
+
+go.addEventListener("click", async () => {
+  if (!choisi) return;
+  go.disabled = true;
+  dire("Lecture du gabarit…");
+
+  try {
+    /* On repart du site en ligne plutôt que d'une copie figée ici : si le
+       design évolue, cette page suit sans qu'on ait à la modifier. */
+    const rep = await fetch("../index.html", { cache: "no-store" });
+    if (!rep.ok) throw new Error("réponse " + rep.status);
+    let html = await rep.text();
+
+    const avant = html;
+    html = html.replace(/href="[^"]*\.exe"/i, 'href="' + encodeURI(choisi.name) + '"');
+    if (html === avant) throw new Error("lien de téléchargement introuvable dans le gabarit");
+
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "index.html";
+    a.click();
+    URL.revokeObjectURL(url);
+
+    dire("index.html téléchargé. Déposez-le sur GitHub avec le .exe.", "ok");
+  } catch (err) {
+    dire("Gabarit illisible (" + err.message + "). Cette page doit tourner en ligne, "
+       + "dans le dossier Edit du site : elle ne fonctionne pas en ouvrant le fichier "
+       + "directement depuis le disque.", "err");
+  }
+  go.disabled = false;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint</title>
+<meta name="description" content="Rappels de pause et exercices guidés, pour les longues sessions assises.">
+<meta name="theme-color" content="#FF9A57">
+
+<meta property="og:title" content="Checkpoint">
+<meta property="og:description" content="Rappels de pause et exercices guidés, pour les longues sessions assises.">
+<meta property="og:type" content="website">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23FF9A57'/%3E%3Cpath d='M 20 5.5 A 14.5 14.5 0 1 1 7.44 12.75' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3Ccircle cx='7.44' cy='12.75' r='3.4' fill='white'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   Checkpoint — page de téléchargement.
+   Le fond reprend les couleurs du logo : le cyan du début d'heure, l'ambre du
+   checkpoint atteint. Le logo passe en blanc pour ressortir dessus.
+   ========================================================================== */
+
+:root {
+  --cyan:   #4FD6E8;
+  --teal:   #2BBBC9;
+  --amber:  #FFB648;
+  --coral:  #FF7E6B;
+  --indigo: #5A5BD8;
+  --white:  #FFFFFF;
+  --display: "Outfit", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100svh;
+  background: linear-gradient(128deg, var(--coral) 0%, var(--amber) 38%, var(--teal) 72%, var(--indigo) 100%);
+  color: var(--white);
+  font-family: var(--display);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nappes de couleur floutées qui dérivent lentement : le fond respire au lieu
+   d'être un dégradé figé. Durées volontairement non multiples entre elles. */
+.mesh { position: fixed; inset: -25%; z-index: 0; pointer-events: none; filter: blur(90px); }
+.blob { position: absolute; border-radius: 50%; opacity: 0.85; }
+
+.b1 { width: 46vw; height: 46vw; left: -4%;   top: 2%;     background: var(--coral);  animation: drift1 19s ease-in-out infinite alternate; }
+.b2 { width: 52vw; height: 52vw; left: 24%;   top: 22%;    background: var(--amber);  animation: drift2 23s ease-in-out infinite alternate; }
+.b3 { width: 44vw; height: 44vw; right: 4%;   top: -6%;    background: var(--cyan);   animation: drift3 21s ease-in-out infinite alternate; }
+.b4 { width: 48vw; height: 48vw; right: -6%;  bottom: 0%;  background: var(--indigo); animation: drift4 26s ease-in-out infinite alternate; }
+.b5 { width: 34vw; height: 34vw; left: 10%;   bottom: -8%; background: var(--teal);   animation: drift1 17s ease-in-out infinite alternate-reverse; }
+
+@keyframes drift1 { to { translate: 12vw -6vh; scale: 1.16; } }
+@keyframes drift2 { to { translate: -10vw 8vh; scale: 0.88; } }
+@keyframes drift3 { to { translate: -8vw 10vh; scale: 1.12; } }
+@keyframes drift4 { to { translate: 6vw -9vh;  scale: 0.9;  } }
+
+.shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  padding: clamp(20px, 3.4vw, 34px);
+}
+
+/* ------------------------------------------------------------- wordmark -- */
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  font-size: clamp(20px, 2.5vw, 25px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--white);
+}
+.wordmark svg {
+  width: 1.02em; height: 1.02em;
+  margin: 0 -0.005em;
+  translate: 0 0.055em;
+}
+
+/* --------------------------------------------------------------- centre -- */
+
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.hint {
+  position: relative;
+  margin-bottom: 26px;
+  padding: 11px 20px;
+  border-radius: 14px;
+  background: var(--white);
+  color: #1D2433;
+  font-size: 14.5px; font-weight: 500;
+  letter-spacing: -0.005em;
+  box-shadow: 0 10px 30px rgba(40, 20, 10, 0.18);
+  animation: float 4.2s ease-in-out infinite;
+}
+.hint::after {
+  content: "";
+  position: absolute;
+  left: 50%; bottom: -7px;
+  width: 15px; height: 15px;
+  translate: -50% 0;
+  rotate: 45deg;
+  border-radius: 3px;
+  background: var(--white);
+}
+@keyframes float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+
+/* --------------------------------------------------- le bouton, la pièce -- */
+
+.dl {
+  display: block;
+  width: clamp(210px, 30vw, 290px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dl svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Le halo déborde largement du bouton. Il ne doit jamais capter les clics,
+   sinon on vise à côté sans comprendre pourquoi. */
+.wave, .bloom { pointer-events: none; }
+
+.wave { fill: none; stroke: var(--white); stroke-width: 3; transform-origin: 140px 140px; }
+.w1 { animation: wave 4.2s cubic-bezier(.25,.6,.3,1) infinite; }
+.w2 { animation: wave 4.2s cubic-bezier(.25,.6,.3,1) infinite 1.4s; }
+.w3 { animation: wave 4.2s cubic-bezier(.25,.6,.3,1) infinite 2.8s; }
+@keyframes wave {
+  0%   { scale: 0.78; opacity: 0.62; stroke-width: 4; }
+  100% { scale: 2.15; opacity: 0;    stroke-width: 1.2; }
+}
+
+.bloom { fill: var(--white); transform-origin: 140px 140px; animation: bloom 4.2s ease-in-out infinite; }
+@keyframes bloom {
+  0%, 100% { scale: 1;    opacity: 0.16; }
+  50%      { scale: 1.22; opacity: 0.30; }
+}
+
+.disc { fill: var(--white); filter: drop-shadow(0 16px 34px rgba(40, 20, 10, 0.26)); }
+
+/* L'anneau du logo entoure le disque. Vide au repos, il se remplit d'un tour
+   complet au survol — le geste de l'application, rejoué sur le bouton. */
+.ring-track { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 7; pointer-events: none; }
+.ring-fill {
+  fill: none;
+  stroke: var(--white);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 665.2;
+  stroke-dashoffset: 665.2;
+  rotate: -90deg;
+  transform-origin: 140px 140px;
+  pointer-events: none;
+  transition: stroke-dashoffset 900ms cubic-bezier(.2,.8,.25,1),
+              stroke-width 500ms ease, filter 500ms ease;
+}
+
+.arrow {
+  fill: none;
+  stroke: url(#warm);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: translate 400ms cubic-bezier(.2,.9,.25,1);
+}
+
+.dl:hover .ring-fill,
+.dl:focus-visible .ring-fill {
+  stroke-dashoffset: 0;
+  stroke-width: 10;
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.9));
+}
+.dl:hover .arrow, .dl:focus-visible .arrow { translate: 0 9px; }
+.dl:hover .disc, .dl:focus-visible .disc { filter: drop-shadow(0 20px 44px rgba(40, 20, 10, 0.34)); }
+.dl:hover .w1, .dl:hover .w2, .dl:hover .w3, .dl:hover .bloom,
+.dl:focus-visible .w1, .dl:focus-visible .w2, .dl:focus-visible .w3,
+.dl:focus-visible .bloom { animation-duration: 2.4s; }
+.dl:active svg { scale: 0.965; }
+.dl:focus-visible { outline: 3px solid var(--white); outline-offset: 14px; }
+
+.pitch {
+  margin-top: clamp(30px, 5vh, 46px);
+  max-width: 27ch;
+  font-size: clamp(15.5px, 2.2vw, 18px);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+@media (max-width: 620px) {
+  .mesh { filter: blur(64px); }
+  .hint { font-size: 13.5px; padding: 10px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0.1s !important; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="mesh" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="blob b4"></div><div class="blob b5"></div>
+</div>
+
+<div class="shell">
+
+  <header>
+    <span class="wordmark">CheckP<svg viewBox="0 0 40 40" aria-hidden="true">
+        <path d="M 20 5.5 A 14.5 14.5 0 1 1 7.44 12.75" fill="none" stroke="currentColor"
+              stroke-width="4.6" stroke-linecap="round"></path>
+        <circle cx="7.44" cy="12.75" r="3.4" fill="currentColor"></circle>
+      </svg>int</span>
+  </header>
+
+  <main class="stage">
+    <p class="hint">Télécharger pour Windows</p>
+
+    <a class="dl" href="Checkpoint-Setup.exe" download
+       aria-label="Télécharger Checkpoint pour Windows">
+      <svg viewBox="0 0 280 280">
+        <defs>
+          <linearGradient id="warm" gradientUnits="userSpaceOnUse"
+                          x1="108" y1="98" x2="172" y2="180">
+            <stop offset="0%" stop-color="#12A0C6"></stop>
+            <stop offset="48%" stop-color="#FF9440"></stop>
+            <stop offset="100%" stop-color="#FF5F63"></stop>
+          </linearGradient>
+        </defs>
+
+        <circle class="wave w1" cx="140" cy="140" r="118"></circle>
+        <circle class="wave w2" cx="140" cy="140" r="118"></circle>
+        <circle class="wave w3" cx="140" cy="140" r="118"></circle>
+        <circle class="bloom" cx="140" cy="140" r="126"></circle>
+
+        <circle class="ring-track" cx="140" cy="140" r="105.9"></circle>
+        <circle class="ring-fill"  cx="140" cy="140" r="105.9"></circle>
+
+        <circle class="disc" cx="140" cy="140" r="86"></circle>
+
+        <g class="arrow">
+          <path d="M140 98v52"></path>
+          <path d="M116 128l24 24 24-24"></path>
+          <path d="M108 180h64"></path>
+        </g>
+      </svg>
+    </a>
+
+    <p class="pitch">Rappels de pause et exercices guidés, pour les longues sessions assises.</p>
+  </main>
+
+</div>
+</body>
+</html>
