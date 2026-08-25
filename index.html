@@ -1,275 +1,588 @@
+---
+layout: null
+title: Index
+---
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Checkpoint</title>
-<meta name="description" content="Rappels de pause et exercices guidés, pour les longues sessions assises.">
-<meta name="theme-color" content="#FF9A57">
-
-<meta property="og:title" content="Checkpoint">
-<meta property="og:description" content="Rappels de pause et exercices guidés, pour les longues sessions assises.">
-<meta property="og:type" content="website">
-
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23FF9A57'/%3E%3Cpath d='M 20 5.5 A 14.5 14.5 0 1 1 7.44 12.75' fill='none' stroke='white' stroke-width='4.5' stroke-linecap='round'/%3E%3Ccircle cx='7.44' cy='12.75' r='3.4' fill='white'/%3E%3C/svg%3E">
+<title>Adrien Terminal — Index</title>
+<meta name="description" content="Index des sites hébergés sur adrienterminal.github.io.">
+<meta name="robots" content="noindex, nofollow">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
-/* ==========================================================================
-   Checkpoint — page de téléchargement.
-   Le fond reprend les couleurs du logo : le cyan du début d'heure, l'ambre du
-   checkpoint atteint. Le logo passe en blanc pour ressortir dessus.
-   ========================================================================== */
+:root{
+  --ground:#D9DCD4;
+  --plate:#F2F3EE;
+  --ink:#14171A;
+  --muted:#6A716B;
+  --rule:#B4B9AE;
+  --signal:#253C8C;
 
-:root {
-  --cyan:   #4FD6E8;
-  --teal:   #2BBBC9;
-  --amber:  #FFB648;
-  --coral:  #FF7E6B;
-  --indigo: #5A5BD8;
-  --white:  #FFFFFF;
-  --display: "Outfit", system-ui, sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --body:"Inter",system-ui,-apple-system,sans-serif;
+  --display:"Fredoka",var(--body);
+
+  --gap:clamp(14px,2vw,22px);
+  --pad:clamp(18px,4vw,44px);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  min-height: 100svh;
-  background: linear-gradient(128deg, var(--coral) 0%, var(--amber) 38%, var(--teal) 72%, var(--indigo) 100%);
-  color: var(--white);
-  font-family: var(--display);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.5;
+  min-height:100vh;
 }
 
-/* Nappes de couleur floutées qui dérivent lentement : le fond respire au lieu
-   d'être un dégradé figé. Durées volontairement non multiples entre elles. */
-.mesh { position: fixed; inset: -25%; z-index: 0; pointer-events: none; filter: blur(90px); }
-.blob { position: absolute; border-radius: 50%; opacity: 0.85; }
+/* ============================================================
+   1. LE PORTAIL (mot de passe)
+   ============================================================ */
+.gate{
+  position:fixed;
+  inset:0;
+  z-index:50;
+  background:var(--ground);
+  display:grid;
+  place-items:center;
+  padding:var(--pad);
+}
+.gate[hidden]{display:none}
 
-.b1 { width: 46vw; height: 46vw; left: -4%;   top: 2%;     background: var(--coral);  animation: drift1 19s ease-in-out infinite alternate; }
-.b2 { width: 52vw; height: 52vw; left: 24%;   top: 22%;    background: var(--amber);  animation: drift2 23s ease-in-out infinite alternate; }
-.b3 { width: 44vw; height: 44vw; right: 4%;   top: -6%;    background: var(--cyan);   animation: drift3 21s ease-in-out infinite alternate; }
-.b4 { width: 48vw; height: 48vw; right: -6%;  bottom: 0%;  background: var(--indigo); animation: drift4 26s ease-in-out infinite alternate; }
-.b5 { width: 34vw; height: 34vw; left: 10%;   bottom: -8%; background: var(--teal);   animation: drift1 17s ease-in-out infinite alternate-reverse; }
+.gate__inner{width:100%;max-width:420px}
 
-@keyframes drift1 { to { translate: 12vw -6vh; scale: 1.16; } }
-@keyframes drift2 { to { translate: -10vw 8vh; scale: 0.88; } }
-@keyframes drift3 { to { translate: -8vw 10vh; scale: 1.12; } }
-@keyframes drift4 { to { translate: 6vw -9vh;  scale: 0.9;  } }
-
-.shell {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100svh;
-  padding: clamp(20px, 3.4vw, 34px);
+.gate__mark{
+  font-family:var(--display);
+  font-weight:600;
+  font-size:clamp(26px,7vw,38px);
+  letter-spacing:-.02em;
+  line-height:1;
+  margin:0 0 4px;
+}
+.gate__sub{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin:0 0 28px;
 }
 
-/* ------------------------------------------------------------- wordmark -- */
-
-.wordmark {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  font-size: clamp(20px, 2.5vw, 25px);
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1;
-  color: var(--white);
+.gate__row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border-bottom:2px solid var(--ink);
+  padding-bottom:8px;
 }
-.wordmark svg {
-  width: 1.02em; height: 1.02em;
-  margin: 0 -0.005em;
-  translate: 0 0.055em;
+.gate__caret{
+  font-family:var(--mono);
+  font-weight:700;
+  color:var(--signal);
+  flex:none;
 }
-
-/* --------------------------------------------------------------- centre -- */
-
-.stage {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.gate__field{
+  flex:1;
+  min-width:0;
+  border:0;
+  background:none;
+  font-family:var(--mono);
+  font-size:16px;
+  letter-spacing:.22em;
+  color:var(--ink);
+  padding:0;
 }
+.gate__field:focus{outline:none}
+.gate__field::placeholder{color:var(--rule);letter-spacing:.16em}
 
-.hint {
-  position: relative;
-  margin-bottom: 26px;
-  padding: 11px 20px;
-  border-radius: 14px;
-  background: var(--white);
-  color: #1D2433;
-  font-size: 14.5px; font-weight: 500;
-  letter-spacing: -0.005em;
-  box-shadow: 0 10px 30px rgba(40, 20, 10, 0.18);
-  animation: float 4.2s ease-in-out infinite;
+.gate__go{
+  flex:none;
+  border:0;
+  background:var(--ink);
+  color:var(--plate);
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.14em;
+  padding:9px 16px;
+  border-radius:2px;
+  cursor:pointer;
 }
-.hint::after {
-  content: "";
-  position: absolute;
-  left: 50%; bottom: -7px;
-  width: 15px; height: 15px;
-  translate: -50% 0;
-  rotate: 45deg;
-  border-radius: 3px;
-  background: var(--white);
+.gate__go:hover{background:var(--signal)}
+
+.gate__msg{
+  font-family:var(--mono);
+  font-size:11.5px;
+  letter-spacing:.06em;
+  color:var(--signal);
+  min-height:1.4em;
+  margin:12px 0 0;
+  opacity:0;
 }
-@keyframes float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+.gate__msg.is-on{opacity:1}
 
-/* --------------------------------------------------- le bouton, la pièce -- */
-
-.dl {
-  display: block;
-  width: clamp(210px, 30vw, 290px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.dl svg { display: block; width: 100%; height: 100%; overflow: visible; }
-
-/* Le halo déborde largement du bouton. Il ne doit jamais capter les clics,
-   sinon on vise à côté sans comprendre pourquoi. */
-.wave, .bloom { pointer-events: none; }
-
-.wave { fill: none; stroke: var(--white); stroke-width: 3; transform-origin: 140px 140px; }
-.w1 { animation: wave 4.2s cubic-bezier(.25,.6,.3,1) infinite; }
-.w2 { animation: wave 4.2s cubic-bezier(.25,.6,.3,1) infinite 1.4s; }
-.w3 { animation: wave 4.2s cubic-bezier(.25,.6,.3,1) infinite 2.8s; }
-@keyframes wave {
-  0%   { scale: 0.78; opacity: 0.62; stroke-width: 4; }
-  100% { scale: 2.15; opacity: 0;    stroke-width: 1.2; }
+.gate.is-wrong .gate__row{animation:nudge .3s}
+@keyframes nudge{
+  25%{transform:translateX(-6px)}
+  75%{transform:translateX(6px)}
 }
 
-.bloom { fill: var(--white); transform-origin: 140px 140px; animation: bloom 4.2s ease-in-out infinite; }
-@keyframes bloom {
-  0%, 100% { scale: 1;    opacity: 0.16; }
-  50%      { scale: 1.22; opacity: 0.30; }
+/* ============================================================
+   2. L'INDEX
+   ============================================================ */
+.wrap{
+  max-width:1500px;
+  margin:0 auto;
+  padding:var(--pad) var(--pad) calc(var(--pad) * 2);
 }
 
-.disc { fill: var(--white); filter: drop-shadow(0 16px 34px rgba(40, 20, 10, 0.26)); }
+.head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  gap:16px;
+  padding-bottom:14px;
+  border-bottom:2px solid var(--ink);
+}
+.head__mark{
+  font-family:var(--display);
+  font-weight:600;
+  font-size:clamp(24px,5vw,34px);
+  letter-spacing:-.02em;
+  line-height:1;
+  margin:0;
+  margin-right:auto;
+}
+.head__count{
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.head__lock{
+  border:1px solid var(--rule);
+  background:none;
+  color:var(--muted);
+  font-family:var(--mono);
+  font-size:11px;
+  letter-spacing:.12em;
+  padding:6px 12px;
+  border-radius:2px;
+  cursor:pointer;
+}
+.head__lock:hover{border-color:var(--ink);color:var(--ink)}
 
-/* L'anneau du logo entoure le disque. Vide au repos, il se remplit d'un tour
-   complet au survol — le geste de l'application, rejoué sur le bouton. */
-.ring-track { fill: none; stroke: rgba(255, 255, 255, 0.28); stroke-width: 7; pointer-events: none; }
-.ring-fill {
-  fill: none;
-  stroke: var(--white);
-  stroke-width: 7;
-  stroke-linecap: round;
-  stroke-dasharray: 665.2;
-  stroke-dashoffset: 665.2;
-  rotate: -90deg;
-  transform-origin: 140px 140px;
-  pointer-events: none;
-  transition: stroke-dashoffset 900ms cubic-bezier(.2,.8,.25,1),
-              stroke-width 500ms ease, filter 500ms ease;
+.filter{
+  margin:18px 0 26px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  max-width:340px;
+}
+.filter__icon{
+  font-family:var(--mono);
+  color:var(--muted);
+  font-size:13px;
+}
+.filter__field{
+  flex:1;
+  min-width:0;
+  border:0;
+  border-bottom:1px solid var(--rule);
+  background:none;
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--ink);
+  padding:5px 0;
+}
+.filter__field:focus{outline:none;border-bottom-color:var(--ink)}
+
+/* --- la grille --- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+  gap:var(--gap);
+  list-style:none;
+  margin:0;
+  padding:0;
 }
 
-.arrow {
-  fill: none;
-  stroke: url(#warm);
-  stroke-width: 12;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: translate 400ms cubic-bezier(.2,.9,.25,1);
+.card{
+  display:flex;
+  flex-direction:column;
+  background:var(--plate);
+  border:1px solid var(--rule);
+  border-radius:3px;
+  overflow:hidden;
+  text-decoration:none;
+  color:inherit;
+  transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  animation:plate-in .4s both;
+  animation-delay:calc(var(--i,0) * 45ms);
+}
+@keyframes plate-in{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+.card:hover,
+.card:focus-visible{
+  transform:translateY(-3px);
+  border-color:var(--ink);
+  box-shadow:0 10px 22px -14px rgba(20,23,26,.55);
+}
+.card:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+.grid li[hidden]{display:none}
+
+/* --- l'aperçu --- */
+.card__view{
+  position:relative;
+  aspect-ratio:16/10;
+  background:var(--ground);
+  border-bottom:1px solid var(--rule);
+  overflow:hidden;
+}
+.card__view iframe,
+.card__view img{
+  position:absolute;
+  top:0;left:0;
+  z-index:1;          /* passe devant la lettre de secours */
+  border:0;
+  display:block;
+}
+/* mise à l'échelle : l'iframe fait 400% de large et est réduite à 25% */
+.card__view iframe{
+  width:400%;
+  height:400%;
+  transform:scale(.25);
+  transform-origin:0 0;
+  pointer-events:none;
+}
+.card__view img{width:100%;height:100%;object-fit:cover}
+
+.card__fallback{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  display:grid;
+  place-items:center;
+  font-family:var(--display);
+  font-size:34px;
+  color:var(--rule);
 }
 
-.dl:hover .ring-fill,
-.dl:focus-visible .ring-fill {
-  stroke-dashoffset: 0;
-  stroke-width: 10;
-  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.9));
+.card__body{
+  padding:14px 16px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  flex:1;
 }
-.dl:hover .arrow, .dl:focus-visible .arrow { translate: 0 9px; }
-.dl:hover .disc, .dl:focus-visible .disc { filter: drop-shadow(0 20px 44px rgba(40, 20, 10, 0.34)); }
-.dl:hover .w1, .dl:hover .w2, .dl:hover .w3, .dl:hover .bloom,
-.dl:focus-visible .w1, .dl:focus-visible .w2, .dl:focus-visible .w3,
-.dl:focus-visible .bloom { animation-duration: 2.4s; }
-.dl:active svg { scale: 0.965; }
-.dl:focus-visible { outline: 3px solid var(--white); outline-offset: 14px; }
-
-.pitch {
-  margin-top: clamp(30px, 5vh, 46px);
-  max-width: 27ch;
-  font-size: clamp(15.5px, 2.2vw, 18px);
-  font-weight: 400;
-  line-height: 1.5;
-  text-align: center;
-  text-wrap: balance;
-  color: rgba(255, 255, 255, 0.94);
+.card__path{
+  font-family:var(--mono);
+  font-size:10.5px;
+  font-weight:500;
+  letter-spacing:.1em;
+  color:var(--signal);
 }
-
-@media (max-width: 620px) {
-  .mesh { filter: blur(64px); }
-  .hint { font-size: 13.5px; padding: 10px 16px; }
+.card__name{
+  font-family:var(--body);
+  font-weight:500;
+  font-size:15px;
+  line-height:1.3;
+  margin:0;
+  overflow-wrap:anywhere;
 }
+.card__desc{
+  font-size:13px;
+  color:var(--muted);
+  margin:0;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.card__desc:empty{display:none}
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition-duration: 0.1s !important; }
+.empty{
+  font-family:var(--mono);
+  font-size:12px;
+  letter-spacing:.08em;
+  color:var(--muted);
+  padding:40px 0;
+}
+.empty[hidden]{display:none}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
 }
 </style>
 </head>
 
 <body>
 
-<div class="mesh" aria-hidden="true">
-  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-  <div class="blob b4"></div><div class="blob b5"></div>
+<!-- ============ PORTAIL ============ -->
+<div class="gate" id="gate">
+  <div class="gate__inner">
+    <p class="gate__mark">Adrien Terminal</p>
+    <p class="gate__sub">Index privé</p>
+
+    <div class="gate__row">
+      <span class="gate__caret" aria-hidden="true">&gt;</span>
+      <input class="gate__field" id="pass" type="password"
+             placeholder="mot de passe" autocomplete="current-password"
+             aria-label="Mot de passe" autofocus>
+      <button class="gate__go" id="go" type="button">Entrer</button>
+    </div>
+
+    <p class="gate__msg" id="msg" role="status"></p>
+  </div>
 </div>
 
-<div class="shell">
-
-  <header>
-    <span class="wordmark">CheckP<svg viewBox="0 0 40 40" aria-hidden="true">
-        <path d="M 20 5.5 A 14.5 14.5 0 1 1 7.44 12.75" fill="none" stroke="currentColor"
-              stroke-width="4.6" stroke-linecap="round"></path>
-        <circle cx="7.44" cy="12.75" r="3.4" fill="currentColor"></circle>
-      </svg>int</span>
+<!-- ============ INDEX ============ -->
+<main class="wrap" id="app" hidden>
+  <header class="head">
+    <h1 class="head__mark">Adrien Terminal</h1>
+    <span class="head__count" id="count"></span>
+    <button class="head__lock" id="lock" type="button">Verrouiller</button>
   </header>
 
-  <main class="stage">
-    <p class="hint">Télécharger pour Windows</p>
+  <div class="filter">
+    <span class="filter__icon" aria-hidden="true">/</span>
+    <input class="filter__field" id="q" type="search"
+           placeholder="filtrer…" aria-label="Filtrer les projets">
+  </div>
 
-    <a class="dl" href="Checkpoint%20Setup%201.0.0.exe" download
-       aria-label="Télécharger Checkpoint pour Windows">
-      <svg viewBox="0 0 280 280">
-        <defs>
-          <linearGradient id="warm" gradientUnits="userSpaceOnUse"
-                          x1="108" y1="98" x2="172" y2="180">
-            <stop offset="0%" stop-color="#12A0C6"></stop>
-            <stop offset="48%" stop-color="#FF9440"></stop>
-            <stop offset="100%" stop-color="#FF5F63"></stop>
-          </linearGradient>
-        </defs>
+  <ul class="grid" id="grid"></ul>
+  <p class="empty" id="empty" hidden>Aucun projet ne correspond.</p>
+</main>
 
-        <circle class="wave w1" cx="140" cy="140" r="118"></circle>
-        <circle class="wave w2" cx="140" cy="140" r="118"></circle>
-        <circle class="wave w3" cx="140" cy="140" r="118"></circle>
-        <circle class="bloom" cx="140" cy="140" r="126"></circle>
+<script>
+/* ============================================================
+   A. LA LISTE DES DOSSIERS — générée par Jekyll au build.
+   Jekyll parcourt tous les fichiers du dépôt et garde ceux qui
+   s'appellent "index.html" et qui sont à un seul niveau de
+   profondeur (donc /Portfolio/index.html, mais pas
+   /Portfolio/pages/index.html). Résultat : quand tu ajoutes un
+   dossier, il apparaît tout seul au prochain build.
+   ============================================================ */
+{% assign found = "" %}
 
-        <circle class="ring-track" cx="140" cy="140" r="105.9"></circle>
-        <circle class="ring-fill"  cx="140" cy="140" r="105.9"></circle>
+{% comment %}
+  Cas 1 : fichiers copiés tels quels (index.html sans front matter).
+  Leur chemin commence par un "/", donc découpé sur "/" on obtient
+  ["", "Portfolio", "index.html"] → 3 morceaux, le dossier est le 2e.
+{% endcomment %}
+{% for f in site.static_files %}
+  {% if f.name == "index.html" %}
+    {% assign bits = f.path | split: "/" %}
+    {% if bits.size == 3 %}
+      {% assign found = found | append: bits[1] | append: "," %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
 
-        <circle class="disc" cx="140" cy="140" r="86"></circle>
+{% comment %}
+  Cas 2 : pages traitées par Jekyll (index.html avec front matter).
+  Leur chemin n'a PAS de "/" au début → ["Portfolio", "index.html"]
+  → 2 morceaux, le dossier est le 1er.
+{% endcomment %}
+{% for p in site.pages %}
+  {% if p.name == "index.html" or p.name == "index.md" or p.name == "index.markdown" %}
+    {% assign bits = p.path | split: "/" %}
+    {% if bits.size == 2 %}
+      {% assign found = found | append: bits[0] | append: "," %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
 
-        <g class="arrow">
-          <path d="M140 98v52"></path>
-          <path d="M116 128l24 24 24-24"></path>
-          <path d="M108 180h64"></path>
-        </g>
-      </svg>
-    </a>
+const DIRS = [{% assign list = found | split: "," | uniq | sort %}{% for d in list %}"{{ d }}"{% unless forloop.last %},{% endunless %}{% endfor %}];
 
-    <p class="pitch">Rappels de pause et exercices guidés, pour les longues sessions assises.</p>
-  </main>
+/* Dossiers à ne PAS afficher (ajoute un nom entre guillemets pour le cacher) */
+const EXCLUDE = ["assets", "images", "img", "css", "js"];
 
-</div>
+/* Hash SHA-256 de "adrienterminal" */
+const KEY = "9f650a1f1801e082c9daf0581de29e9512de388e1c51095aff985eda94bf406d";
+const REMEMBER = "at-index-ok";
+
+const $ = (id) => document.getElementById(id);
+
+/* ============================================================
+   B. PORTAIL
+   ============================================================ */
+async function hash(txt){
+  const bytes = new TextEncoder().encode(txt);
+  const buf = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function remembered(){
+  try { return localStorage.getItem(REMEMBER) === KEY; } catch { return false; }
+}
+
+function unlock(){
+  $("gate").hidden = true;
+  $("app").hidden = false;
+  build();
+}
+
+async function submit(){
+  const gate = $("gate"), msg = $("msg");
+  let ok = false;
+  try {
+    ok = (await hash($("pass").value.trim())) === KEY;
+  } catch {
+    ok = $("pass").value.trim() === "adrienterminal"; // secours si crypto indisponible
+  }
+
+  if (ok) {
+    try { localStorage.setItem(REMEMBER, KEY); } catch {}
+    unlock();
+  } else {
+    msg.textContent = "Mot de passe incorrect.";
+    msg.classList.add("is-on");
+    gate.classList.add("is-wrong");
+    $("pass").select();
+    setTimeout(() => gate.classList.remove("is-wrong"), 320);
+  }
+}
+
+$("go").addEventListener("click", submit);
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+
+$("lock").addEventListener("click", () => {
+  try { localStorage.removeItem(REMEMBER); } catch {}
+  location.reload();
+});
+
+/* ============================================================
+   C. CONSTRUCTION DE L'INDEX
+   ============================================================ */
+let built = false;
+
+async function build(){
+  if (built) return;
+  built = true;
+
+  const dirs = DIRS.filter(d => !EXCLUDE.includes(d) && !d.startsWith("_") && !d.startsWith("."));
+  $("count").textContent = dirs.length + (dirs.length > 1 ? " sites" : " site");
+
+  const grid = $("grid");
+  dirs.forEach((dir, i) => grid.appendChild(makeCard(dir, i)));
+
+  // On lit les métadonnées de chaque sous-site en parallèle.
+  dirs.forEach(dir => fillCard(dir));
+}
+
+function makeCard(dir, i){
+  const li = document.createElement("li");
+  li.innerHTML = `
+    <a class="card" href="./${dir}/" style="--i:${i}" data-dir="${dir}">
+      <div class="card__view" data-view>
+        <span class="card__fallback">${dir.charAt(0).toUpperCase()}</span>
+      </div>
+      <div class="card__body">
+        <span class="card__path">/${dir}/</span>
+        <h2 class="card__name" data-name>${dir}</h2>
+        <p class="card__desc" data-desc></p>
+      </div>
+    </a>`;
+  return li;
+}
+
+/* Lit le <title>, la description et l'og:image du sous-site,
+   puis pose l'aperçu visuel. */
+async function fillCard(dir){
+  const card = document.querySelector(`.card[data-dir="${dir}"]`);
+  if (!card) return;
+
+  const base = new URL(`./${dir}/`, location.href);
+  let doc = null;
+
+  try {
+    const res = await fetch(base.href + "index.html");
+    if (res.ok) doc = new DOMParser().parseFromString(await res.text(), "text/html");
+  } catch {}
+
+  if (doc) {
+    const meta = (sel) => doc.querySelector(sel)?.getAttribute("content")?.trim() || "";
+    const name = meta('meta[property="og:title"]')
+              || doc.querySelector("title")?.textContent.trim()
+              || dir;
+    const desc = meta('meta[name="description"]')
+              || meta('meta[property="og:description"]');
+
+    card.querySelector("[data-name]").textContent = name;
+    card.querySelector("[data-desc]").textContent = desc;
+    card.title = name;
+
+    const raw = meta('meta[property="og:image"]');
+    if (raw) {
+      const img = new Image();
+      img.alt = "";
+      img.src = new URL(raw, base).href;
+      img.onload = () => card.querySelector("[data-view]").prepend(img);
+      img.onerror = () => watchView(card, base.href);
+      return;
+    }
+  }
+
+  watchView(card, base.href);
+}
+
+/* Aperçu de secours : le vrai site dans une iframe réduite.
+   On ne la charge que quand la carte arrive à l'écran. */
+const seen = new IntersectionObserver((entries, obs) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    obs.unobserve(e.target);
+    const frame = document.createElement("iframe");
+    frame.src = e.target.dataset.src;
+    frame.loading = "lazy";
+    frame.scrolling = "no";
+    frame.tabIndex = -1;
+    frame.setAttribute("aria-hidden", "true");
+    e.target.prepend(frame);
+  });
+}, { rootMargin: "300px" });
+
+function watchView(card, href){
+  const view = card.querySelector("[data-view]");
+  view.dataset.src = href;
+  seen.observe(view);
+}
+
+/* ============================================================
+   D. FILTRE
+   ============================================================ */
+$("q").addEventListener("input", (e) => {
+  const term = e.target.value.trim().toLowerCase();
+  let shown = 0;
+
+  document.querySelectorAll(".card").forEach(card => {
+    const hay = (card.dataset.dir + " " + card.textContent).toLowerCase();
+    const hit = hay.includes(term);
+    card.parentElement.hidden = !hit;
+    if (hit) shown++;
+  });
+
+  $("empty").hidden = shown > 0;
+});
+
+/* ============================================================
+   E. DÉMARRAGE
+   ============================================================ */
+if (remembered()) unlock();
+</script>
+
 </body>
 </html>
