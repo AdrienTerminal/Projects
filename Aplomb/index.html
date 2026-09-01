@@ -193,6 +193,33 @@ tbody tr:hover{background:rgba(255,255,255,.028)}
 .amber{color:var(--a)}.iris{color:var(--b)}.warn{color:var(--warn)}.ok{color:var(--ok)}.dim{color:var(--faint)}
 
 /* ---------- emplacements de comparaison ---------- */
+.submode{display:inline-flex;gap:3px;padding:3px;margin-bottom:16px;
+  background:var(--glass);border:1px solid var(--edge);border-radius:12px;
+  backdrop-filter:blur(18px)}
+.submode button{font-family:inherit;font-size:12.5px;color:var(--dim);background:none;
+  border:0;border-radius:9px;padding:7px 15px;cursor:pointer;transition:.18s}
+.submode button:hover{color:var(--ink)}
+.submode button.on{color:var(--ink);background:rgba(255,255,255,.09);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.knobs{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin:18px 0 4px}
+.knob{display:grid;grid-template-columns:1fr 60px;align-items:center;gap:10px}
+.knob label{grid-column:1/3;font-size:12.5px;color:var(--ink);display:flex;gap:8px;align-items:baseline}
+.knob label span{font-size:11px;color:var(--faint)}
+.knob output{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--a);text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:3px;
+  background:rgba(255,255,255,.09);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:linear-gradient(160deg,#FFC576,var(--a));cursor:pointer;
+  box-shadow:0 0 0 3px rgba(255,180,84,.16),0 2px 8px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border:0;border-radius:50%;
+  background:#FFB454;box-shadow:0 0 0 3px rgba(255,180,84,.16)}
+.ab{display:flex;flex-wrap:wrap;align-items:center;gap:11px}
+.abnote{font-size:12px;color:var(--faint);flex:1;min-width:200px}
+.seg{display:inline-flex;gap:2px;padding:3px;background:rgba(255,255,255,.05);
+  border:1px solid var(--edge);border-radius:10px}
+.seg button{font-family:inherit;font-size:12px;color:var(--dim);background:none;border:0;
+  border-radius:7px;padding:6px 13px;cursor:pointer;transition:.16s}
+.seg button.on{color:var(--void);background:var(--a);font-weight:600}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .slot{padding:18px 20px;min-height:104px;display:flex;flex-direction:column;gap:6px;justify-content:center}
 .slot .head{display:flex;align-items:center;gap:7px;font-family:"Unbounded",sans-serif;
@@ -263,6 +290,7 @@ progress::-moz-progress-bar{background:var(--a)}
 .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 
 @media (max-width:820px){
+  .knobs{grid-template-columns:1fr}
   .stats{grid-template-columns:repeat(2,1fr)}
   .slots{grid-template-columns:1fr}
 }
@@ -372,19 +400,25 @@ progress::-moz-progress-bar{background:var(--a)}
 
 <!-- ================= MIXER ================= -->
 <section id="mix" hidden>
-  <div class="slots">
+  <div class="submode" id="mixmode">
+    <button class="on" data-sub="ref">Comparer à des références</button>
+    <button data-sub="cible">Viser une courbe</button>
+  </div>
+  <div class="slots" id="slotwrap">
     <div class="glass drop slot" id="slotA" tabindex="0" role="button">
       <div class="head"><i></i>Ton titre
         <span class="info" tabindex="0">i<span class="tip">Le morceau à analyser puis à corriger. FLAC ou WAV de préférence.</span></span>
       </div>
       <small id="infoA">Clique ou dépose un fichier.</small>
     </div>
+  <div id="refslots" class="slots" style="display:contents">
     <div class="glass drop slot ref" id="slotB" tabindex="0" role="button">
       <div class="head"><i></i>Références
         <span class="info" tabindex="0">i<span class="tip">Un ou plusieurs morceaux dont l'équilibre te plaît. Trois ou quatre valent mieux qu'un : ce sur quoi ils s'accordent est réel. Les MP3 sont acceptés, leur coupure dans les aigus est détectée.</span></span>
       </div>
       <small id="infoB">Un ou plusieurs morceaux qui sonnent fort chez toi.</small>
     </div>
+  </div>
   </div>
   <input type="file" id="pickA" accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
   <input type="file" id="pickB" multiple accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
@@ -1445,7 +1479,7 @@ async function loadSlot(key,files){
     if(key==='B') slots.B=[]; else slots.A=null;
   }
   el('prog2').classList.add('hidden');
-  drawVerdict();
+  refreshMix();
 }
 
 function bars(rows,range){
@@ -1573,11 +1607,16 @@ async function runFix(){
   t.peakIn=(await truePeakScan(eq,maxAbs(eq)*0.5,false,p=>{el('prog2').value=50+p*20;})).peak;
   const res=await processTrack(t,goal,ceil,p=>{el('prog2').value=70+p*25;});
 
+  // La comparaison porte sur la forme du spectre, pas sur son niveau :
+  // on retire l'écart moyen des deux côtés avant de comparer.
+  const center=a=>{const m=a.reduce((s,x)=>s+x.db,0)/a.length;
+    return a.map(x=>({label:x.label,db:x.db-m}));};
   const g=lin(goal-integratedLoudness(res.channels,fsr));
   const specAfter=averageSpectrum(res.channels,fsr,g);
-  const after=bandLevels(specAfter).map((b,i)=>({label:b.label,
-    db:b.db-R.reduce((s,r)=>s+r.bands[i].db,0)/R.length}));
-  const before=A.bands.map((b,i)=>({db:b.db-R.reduce((s,r)=>s+r.bands[i].db,0)/R.length}));
+  const after=center(bandLevels(specAfter).map((b,i)=>({label:b.label,
+    db:b.db-R.reduce((s,r)=>s+r.bands[i].db,0)/R.length})));
+  const before=center(A.bands.map((b,i)=>({label:b.label,
+    db:b.db-R.reduce((s,r)=>s+r.bands[i].db,0)/R.length})));
   const applied=curveByBand(f.curve,f.binHz);
   const worst=Math.max(...applied.map(x=>Math.abs(x.db)));
   const avgB=before.reduce((s,x)=>s+Math.abs(x.db),0)/before.length;
@@ -1666,6 +1705,276 @@ el('mode').addEventListener('change',render);
 
 drawScale();
 render();
+
+/* ==================================================================
+   COURBE CIBLE — profil paramétrique au lieu d'un fichier de référence
+   ================================================================== */
+
+const bell   = (f,fc,oct)=>Math.exp(-Math.pow(Math.log2(f/fc)/oct,2));
+const shelfLo= (f,fc)=>1/(1+Math.pow(f/fc,2));
+const shelfHi= (f,fc)=>1/(1+Math.pow(fc/f,2));
+
+/* Construit un spectre de référence synthétique.
+   Base : une pente constante en dB par octave (le bruit rose et ses
+   variantes, la référence de mixage la plus ancienne et la plus solide).
+   Par-dessus : cinq réglages de tonalité. */
+function targetSpectrum(binHz,n,p){
+  const power=new Float64Array(n);
+  for(let b=1;b<n;b++){
+    const f=b*binHz;
+    let db = p.tilt*Math.log2(Math.max(f,25)/1000);
+    db += p.sub  * shelfLo(f,95);
+    db += p.bas  * bell(f,180,1.35);
+    db += p.med  * bell(f,750,1.45);
+    db += p.pres * bell(f,3000,1.30);
+    db += p.air  * shelfHi(f,7000);
+    // Coupure sous 30 Hz : rien d'audible n'y vit, et cette énergie
+    // mange le budget de loudness.
+    db += 10*Math.log10(1/(1+Math.pow(30/Math.max(f,1),6)));
+    power[b]=Math.pow(10,db/10);
+  }
+  power[0]=power[1];
+  return {power,binHz};
+}
+
+/* Points de départ. Ce ne sont PAS des moyennes mesurées sur des
+   disques : ce sont des positions de réglages conformes aux usages
+   de mixage de chaque style, à ajuster à l'oreille. */
+const PROFILS={
+  neutre:  {label:'Neutre · pente rose',   tilt:-4.5, sub:0,  bas:0,   med:0,   pres:0,   air:0},
+  trap:    {label:'Trap · drill',          tilt:-4.5, sub:5,  bas:-2,  med:-1.5,pres:1,   air:2},
+  house:   {label:'House · French touch',  tilt:-4.5, sub:2,  bas:0,   med:0,   pres:1,   air:1},
+  choeur:  {label:'Chœur · acoustique',    tilt:-3.5, sub:-3, bas:-1,  med:1,   pres:1.5, air:1},
+  pop:     {label:'Pop · voix en avant',   tilt:-4.5, sub:0,  bas:-1.5,med:0,   pres:2.5, air:2},
+  rock:    {label:'Rock · guitares',       tilt:-4,   sub:-1, bas:-1,  med:1,   pres:2,   air:1},
+  lofi:    {label:'Lo-fi · chaud',         tilt:-5.5, sub:1,  bas:1.5, med:.5,  pres:-1.5,air:-3}
+};
+const KNOBS=[
+  ['sub','Grave','sous 95 Hz'],
+  ['bas','Bas-médium','autour de 180 Hz'],
+  ['med','Médium','autour de 750 Hz'],
+  ['pres','Présence','autour de 3 kHz'],
+  ['air','Aigus','au-dessus de 7 kHz'],
+  ['tilt','Pente générale','dB par octave']
+];
+let shape=Object.assign({},PROFILS.neutre);
+
+/* Moyenne en dB sur la zone utile, pour caler deux spectres au même
+   niveau avant de les comparer. */
+function midLevel(power,binHz){
+  let s=0,n=0;
+  for(let b=Math.round(100/binHz);b<Math.round(8000/binHz);b++){
+    s+=10*Math.log10(Math.max(power[b],1e-30)); n++;
+  }
+  return s/n;
+}
+
+function buildTargetRef(){
+  const A=slots.A;
+  if(!A) return null;
+  const spec=targetSpectrum(A.spec.binHz,A.spec.power.length,shape);
+  // La courbe cible décrit une forme, pas un volume : on l'aligne sur
+  // le niveau du morceau pour que les écarts affichés aient un sens.
+  const k=Math.pow(10,(midLevel(A.spec.power,A.spec.binHz)-midLevel(spec.power,spec.binHz))/10);
+  for(let b=0;b<spec.power.length;b++) spec.power[b]*=k;
+  return {name:'courbe cible', spec, bands:bandLevels(spec), bw:null,
+          curve:specCurve(spec), synthetic:true,
+          lufs:NaN,tp:NaN,plr:NaN,lra:null,width:NaN,corr:NaN,st:[]};
+}
+
+function knobRow(k,label,hint){
+  const v=shape[k];
+  const min = k==='tilt' ? -7 : -8, max = k==='tilt' ? -2 : 8, step = k==='tilt' ? .25 : .5;
+  return '<div class="knob"><label for="k_'+k+'">'+label+'<span>'+hint+'</span></label>'+
+    '<input type="range" id="k_'+k+'" data-k="'+k+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+v+'">'+
+    '<output id="o_'+k+'">'+num(v,k==='tilt'?2:1)+'</output></div>';
+}
+
+function drawTarget(){
+  const A=slots.A, box=el('verdict');
+  if(!A){ box.classList.add('hidden'); el('fixbar').classList.add('hidden'); return; }
+  box.classList.remove('hidden'); el('fixbar').classList.remove('hidden');
+  const T=buildTargetRef();
+  slots.B=[T];
+
+  const raw=A.bands.map((b,i)=>b.db-T.bands[i].db);
+  const off=raw.reduce((a,b)=>a+b,0)/raw.length;
+  const diffs=raw.map(v=>v-off);
+  let h='<div class="glass pad" style="margin-top:18px">';
+  h+='<div class="bar" style="margin-top:0"><div class="field"><div class="flabel">Profil de départ'+
+     '<span class="info" tabindex="0">i<span class="tip">Une position de réglages conforme aux usages de mixage du style, pas une moyenne mesurée sur des disques. Sers-t\'en comme point de départ et ajuste au son.</span></span></div>'+
+     '<select id="profil">'+Object.entries(PROFILS).map(([k,p])=>
+       '<option value="'+k+'">'+p.label+'</option>').join('')+'</select></div></div>';
+  h+='<div class="knobs">'+KNOBS.map(k=>knobRow(k[0],k[1],k[2])).join('')+'</div>';
+  h+='<div class="plot"><h3>Ton titre contre la courbe visée<span class="key">'+
+     '<b><i></i>ton titre</b><b class="r"><i></i>cible</b></span></h3><canvas id="cvSpec"></canvas></div>';
+  h+='<div class="plot"><h3>Écart par bande</h3>'+
+     bars(A.bands.map((b,i)=>({label:b.label,db:diffs[i]})),12)+'</div>';
+  h+='<div class="plot"><h3>Écoute comparative<span class="key" id="abstate"></span></h3>'+
+     '<div class="ab"><button class="quiet" id="prep">Préparer un extrait</button>'+
+     '<button class="quiet hidden" id="abplay">Écouter</button>'+
+     '<div class="seg hidden" id="abseg"><button class="on" data-src="0">Original</button>'+
+     '<button data-src="1">Corrigé</button></div>'+
+     '<span class="abnote" id="abnote">Un extrait de 18 s autour du passage le plus fort, les deux versions ramenées au même volume.</span></div></div>';
+  h+='</div>';
+  box.innerHTML=h;
+
+  el('profil').value=Object.keys(PROFILS).find(k=>
+    KNOBS.every(([n])=>PROFILS[k][n]===shape[n]))||'neutre';
+  el('profil').addEventListener('change',e=>{
+    shape=Object.assign({},PROFILS[e.target.value]); drawTarget();
+  });
+  box.querySelectorAll('input[type=range]').forEach(r=>{
+    r.addEventListener('input',e=>{
+      const k=e.target.dataset.k;
+      shape[k]=parseFloat(e.target.value);
+      el('o_'+k).textContent=num(shape[k],k==='tilt'?2:1);
+      scheduleTarget();
+    });
+  });
+  el('prep').addEventListener('click',prepPreview);
+  el('abplay').addEventListener('click',togglePlay);
+  box.querySelectorAll('#abseg button').forEach(b=>
+    b.addEventListener('click',()=>switchSource(+b.dataset.src)));
+
+  const paint=()=>{
+    if(!el('cvSpec')) return;
+    drawSpectra(el('cvSpec'),[
+      {db:T.curve.db,binHz:T.curve.binHz,color:IRIS},
+      {db:A.curve.db,binHz:A.curve.binHz,color:AMBER}
+    ]);
+  };
+  redraws=[paint]; redrawAll();
+}
+
+/* Redessin léger pendant qu'on bouge un curseur : on ne reconstruit
+   que la courbe et les barres, pas tout le panneau. */
+let tTimer=null;
+function scheduleTarget(){
+  clearTimeout(tTimer);
+  tTimer=setTimeout(()=>{
+    const A=slots.A; if(!A) return;
+    const T=buildTargetRef(); slots.B=[T];
+    const raw=A.bands.map((b,i)=>b.db-T.bands[i].db);
+    const off=raw.reduce((a,b)=>a+b,0)/raw.length;
+    const diffs=raw.map(v=>v-off);
+    const plots=document.querySelectorAll('#verdict .plot');
+    plots[1].innerHTML='<h3>Écart par bande</h3>'+
+      bars(A.bands.map((b,i)=>({label:b.label,db:diffs[i]})),12);
+    drawSpectra(el('cvSpec'),[
+      {db:T.curve.db,binHz:T.curve.binHz,color:IRIS},
+      {db:A.curve.db,binHz:A.curve.binHz,color:AMBER}
+    ]);
+    el('profil').value=Object.keys(PROFILS).find(k=>
+      KNOBS.every(([n])=>PROFILS[k][n]===shape[n]))||'';
+    resetPreview();
+  },110);
+}
+
+/* ==================================================================
+   ÉCOUTE COMPARATIVE
+   ================================================================== */
+
+let ac=null, buffers=[null,null], src=null, which=0, startedAt=0, offset=0, playing=false;
+
+function resetPreview(){
+  stopPlay();
+  buffers=[null,null];
+  const p=el('prep'), b=el('abplay'), s=el('abseg');
+  if(p){p.classList.remove('hidden'); p.textContent='Préparer un extrait';}
+  if(b) b.classList.add('hidden');
+  if(s) s.classList.add('hidden');
+}
+
+async function prepPreview(){
+  const A=slots.A; if(!A||!A.channels) return;
+  el('prep').disabled=true; el('prep').textContent='Préparation…';
+  await new Promise(r=>setTimeout(r,20));
+  const fsr=A.sampleRate, ch=A.channels, n=ch[0].length;
+  const win=Math.min(n, Math.round(fsr*18));
+
+  // passage le plus fort, mesuré par blocs d'une seconde
+  const blk=fsr, nb=Math.max(1,Math.floor(n/blk));
+  let best=0, bestE=-1;
+  for(let i=0;i<nb;i++){
+    let e=0; const o=i*blk;
+    for(let j=0;j<blk;j+=64){const v=ch[0][o+j]||0; e+=v*v;}
+    if(e>bestE){bestE=e;best=i;}
+  }
+  let start=Math.max(0,Math.min(n-win, best*blk-Math.round(win/2)));
+  const cut=ch.map(c=>c.slice(start,start+win));
+
+  const T=buildTargetRef();
+  const f=designMatchFilter(A.spec,[T.spec],fsr,
+    Object.assign({taps:4096},FORCES[el('force').value]));
+  const eq=convolve(cut,f.taps,null);
+
+  // même volume des deux côtés, sinon le plus fort gagne toujours
+  const gA=lin(-16-integratedLoudness(cut,fsr));
+  const gB=lin(-16-integratedLoudness(eq,fsr));
+  const mk=(chs,g)=>{
+    const buf=ac.createBuffer(chs.length,chs[0].length,fsr);
+    chs.forEach((c,i)=>{
+      const d=buf.getChannelData(i);
+      for(let k=0;k<c.length;k++) d[k]=Math.max(-1,Math.min(1,c[k]*g));
+    });
+    return buf;
+  };
+  ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  buffers=[mk(cut,gA),mk(eq,gB)];
+  offset=0; which=0;
+  el('prep').classList.add('hidden'); el('prep').disabled=false;
+  el('abplay').classList.remove('hidden');
+  el('abseg').classList.remove('hidden');
+  el('abnote').textContent='Bascule entre les deux pendant la lecture, la position est conservée.';
+}
+
+function startPlay(){
+  if(!buffers[which]) return;
+  src=ac.createBufferSource();
+  src.buffer=buffers[which];
+  src.loop=true;
+  src.connect(ac.destination);
+  src.start(0,offset%buffers[which].duration);
+  startedAt=ac.currentTime;
+  playing=true;
+  el('abplay').textContent='Pause';
+}
+function stopPlay(){
+  if(src){ try{src.stop()}catch(e){} src.disconnect(); src=null; }
+  if(playing && ac) offset+=ac.currentTime-startedAt;
+  playing=false;
+  const b=el('abplay'); if(b) b.textContent='Écouter';
+}
+function togglePlay(){
+  if(!ac) return;
+  if(ac.state==='suspended') ac.resume();
+  playing?stopPlay():startPlay();
+}
+function switchSource(i){
+  if(which===i) return;
+  which=i;
+  document.querySelectorAll('#abseg button').forEach(b=>
+    b.classList.toggle('on',+b.dataset.src===i));
+  if(playing){ stopPlay(); startPlay(); }
+}
+
+/* ---------- bascule entre les deux façons de viser ---------- */
+function setSubmode(m){
+  document.querySelectorAll('.submode button').forEach(b=>
+    b.classList.toggle('on',b.dataset.sub===m));
+  el('refslots').style.display = m==='ref' ? 'contents' : 'none';
+  el('slotwrap').style.gridTemplateColumns = m==='ref' ? '' : '1fr';
+  el('fixresult').innerHTML='';
+  resetPreview();
+  submode=m;
+  slots.B=[];
+  refreshMix();
+}
+let submode='ref';
+function refreshMix(){ submode==='cible' ? drawTarget() : drawVerdict(); }
+document.querySelectorAll('.submode button').forEach(b=>
+  b.addEventListener('click',()=>setSubmode(b.dataset.sub)));
 
 </script>
 </body>
