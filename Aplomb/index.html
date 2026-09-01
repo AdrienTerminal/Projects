@@ -1455,6 +1455,60 @@ async function runAll(){
 
 const slots={A:null,B:[]};
 
+
+/* Pompage : la musique creuse-t-elle à chaque temps ?
+   On écarte le grave, parce que le kick fait bouger l'enveloppe et
+   c'est normal. Ce qu'on cherche, c'est si LE RESTE recule à chaque
+   frappe — un sidechain, un compresseur de bus trop réactif. */
+function modulation(channels,fs){
+  const w=2*Math.PI*300/fs, a=1/(1+w);
+  const hp=channels.map(c=>{
+    const o=new Float32Array(c.length);
+    let y=0,x1=0,y2=0,x2=0;
+    for(let i=0;i<c.length;i++){ y=a*(y+c[i]-x1); x1=c[i];
+      y2=a*(y2+y-x2); x2=y; o[i]=y2; }
+    return o;
+  });
+  const hop=Math.round(fs*0.005), n=hp[0].length, m=Math.floor(n/hop);
+  if(m<400) return {depth:0,bpm:0,shape:null};
+  const db=new Float64Array(m);
+  for(let i=0;i<m;i++){
+    let s=0,c=0; const o=i*hop;
+    for(const ch of hp) for(let j=0;j<hop;j+=2){const v=ch[o+j]||0; s+=v*v; c++;}
+    db[i]=10*Math.log10(Math.max(s/c,1e-12));
+  }
+  const W=800, pre=new Float64Array(m+1);
+  for(let i=0;i<m;i++) pre[i+1]=pre[i]+db[i];
+  const res=new Float64Array(m);
+  for(let i=0;i<m;i++){
+    const p=Math.max(0,i-W/2), q=Math.min(m,i+W/2);
+    res[i]=db[i]-(pre[q]-pre[p])/(q-p);
+  }
+  let N=1; while(N<m) N<<=1;
+  const re=new Float64Array(N), im=new Float64Array(N);
+  for(let i=0;i<m;i++) re[i]=res[i]*(0.5-0.5*Math.cos(2*Math.PI*i/(m-1)));
+  fft(re,im);
+  let best=0,bf=0;
+  for(let b=1;b<N/2;b++){
+    const f=b*200/N;
+    if(f<0.6||f>12) continue;
+    const A2=Math.hypot(re[b],im[b]);
+    if(A2>best){best=A2;bf=f;}
+  }
+  if(!bf) return {depth:0,bpm:0,shape:null};
+  const P=200/bf, bins=48;
+  const acc=new Float64Array(bins), cnt=new Float64Array(bins);
+  for(let i=0;i<m;i++){
+    const b=Math.floor((((i/P)%1)+1)%1*bins);
+    acc[b]+=res[i]; cnt[b]++;
+  }
+  const sh=[]; for(let b=0;b<bins;b++) sh.push(acc[b]/Math.max(1,cnt[b]));
+  let hi=-1e9,lo=1e9,at=0;
+  sh.forEach((v,i)=>{if(v>hi){hi=v;at=i;} if(v<lo)lo=v;});
+  const rot=[]; for(let b=0;b<bins;b++) rot.push(sh[(b+at-4+bins)%bins]);
+  return {depth:hi-lo, bpm:bf*60, shape:rot};
+}
+
 function stereoStats(ch){
   if(ch.length<2) return {width:0,corr:1};
   const L=ch[0],R=ch[1];
@@ -1480,7 +1534,7 @@ async function analyseFile(file,keep){
   return {
     name:t.name, lufs, tp:dB(tp), plr:dB(tp)-lufs,
     lra:loudnessRange(t.channels,t.sampleRate),
-    width:st.width, corr:st.corr,
+    width:st.width, corr:st.corr, mod:modulation(t.channels,t.sampleRate),
     spec, bands:bandLevels(spec), bw:detectBandwidth(spec),
     curve:specCurve(spec), st:shortTermCurve(t.channels,t.sampleRate,g),
     sampleRate:t.sampleRate, channels: keep?t.channels:null
@@ -1544,7 +1598,7 @@ function drawVerdict(){
   const avg=f=>R.reduce((s,r)=>s+f(r),0)/R.length;
   const B={lufs:avg(r=>r.lufs), tp:avg(r=>r.tp), plr:avg(r=>r.plr),
     lra:R.every(r=>r.lra!==null)?avg(r=>r.lra):NaN,
-    width:avg(r=>r.width), corr:avg(r=>r.corr),
+    width:avg(r=>r.width), corr:avg(r=>r.corr), mod:{depth:avg(r=>r.mod.depth)},
     bands:A.bands.map((_,i)=>avg(r=>r.bands[i].db))};
   const diffs=A.bands.map((b,i)=>b.db-B.bands[i]);
 
@@ -1557,6 +1611,7 @@ function drawVerdict(){
     statCell('Étendue',A.lra,B.lra,'LU',1)+
     statCell('Largeur stéréo',A.width,B.width,'%',0)+
     statCell('Corrélation',A.corr,B.corr,'',2)+
+    statCell('Creux par temps',A.mod.depth,B.mod.depth,'dB',1)+
     '</div>';
 
   const key='<span class="key"><b><i></i>ton titre</b><b class="r"><i></i>référence</b></span>';
@@ -1564,6 +1619,8 @@ function drawVerdict(){
   h+='<div class="plot"><h3>Écart par bande</h3>'+
      bars(A.bands.map((b,i)=>({label:b.label,db:diffs[i]})),12)+'</div>';
   h+='<div class="plot"><h3>Niveau au fil du morceau'+key+'</h3><canvas id="cvTime"></canvas></div>';
+  if(A.mod.shape) h+='<div class="plot"><h3>Forme d\'un temps'+key+
+    '</h3><canvas id="cvBeat"></canvas></div>';
 
   const G={
     graves:(diffs[0]+diffs[1])/2, bas:(diffs[2]+diffs[3])/2,
@@ -1576,6 +1633,7 @@ function drawVerdict(){
   if(G.aigus<-3) L.push('Tes aigus sont <em>'+Math.abs(G.aigus).toFixed(1)+' dB sous</em> les références. Ça joue peu sur la puissance ressentie, mais ça rend le morceau plus terne.');
   if(G.aigus>4) L.push('Tes aigus dépassent les références de <em>'+G.aigus.toFixed(1)+' dB</em>. Ça peut fatiguer avant de sonner fort.');
   if(isFinite(B.lra)&&A.lra!==null&&A.lra-B.lra>4) L.push('Ton morceau varie de <em>'+A.lra.toFixed(1)+' LU</em> entre ses passages calmes et ses passages forts, contre '+B.lra.toFixed(1)+'. Le niveau affiché étant une moyenne, tes moments forts sont bien placés mais le reste passe dessous.');
+  if(A.mod.depth>3 && A.mod.depth-B.mod.depth>1.2) L.push('Hors du grave, ta musique recule de <em>'+A.mod.depth.toFixed(1)+' dB à chaque temps</em>, contre '+B.mod.depth.toFixed(1)+' pour tes références. C\'est un sidechain ou un compresseur de bus trop réactif, dans ton projet FL Studio. Aucun égaliseur ne peut le retirer : ça s\'entend comme un creux régulier, et ça s\'entend d\'autant plus qu\'on rééquilibre le reste.');
   if(A.plr-B.plr>4) L.push('Tu laisses <em>'+A.plr.toFixed(1)+' dB</em> entre ton niveau moyen et tes crêtes, contre '+B.plr.toFixed(1)+'. Une compression plus ferme sur le bus master resserre ça.');
   if(!L.length) L.push('Les deux sont très proches, en spectre comme en dynamique. Le fichier n\'est plus en cause : vérifie que la normalisation est active là où tu écoutes. Elle est désactivée sur le lecteur web de Spotify et sur les appareils externes.');
 
@@ -1598,6 +1656,10 @@ function drawVerdict(){
       ...R.map(r=>({data:r.st,color:IRIS})),
       {data:A.st,color:AMBER}
     ],-14);
+    if(el('cvBeat')) drawTime(el('cvBeat'),[
+      ...R.filter(r=>r.mod.shape).map(r=>({data:r.mod.shape,color:IRIS})),
+      {data:A.mod.shape,color:AMBER}
+    ],0);
   };
   redraws=[paint];
   redrawAll();
@@ -1655,6 +1717,7 @@ async function runFix(){
   const avgB=before.reduce((s,x)=>s+Math.abs(x.db),0)/before.length;
   const avgA=after.reduce((s,x)=>s+Math.abs(x.db),0)/after.length;
   const stAfter=shortTermCurve(res.channels,fsr);
+  const modAfter=modulation(res.channels,fsr);
   const curveAfter=specCurve(specAfter);
 
   let h='<div class="glass pad" style="margin-top:18px">';
@@ -1664,6 +1727,9 @@ async function runFix(){
       mn('-'+(avgB-avgA).toFixed(1))+' dB, il était de '+avgB.toFixed(1)+'</div></div>'+
     '<div class="stat"><div class="k">Niveau de sortie</div><div class="v">'+
       '<span class="x">'+mn(res.lufsOut.toFixed(1))+'</span></div><div class="d">LUFS intégré</div></div>'+
+    '<div class="stat"><div class="k">Creux par temps</div><div class="v">'+
+      '<span class="x">'+modAfter.depth.toFixed(1)+'</span></div><div class="d">dB · il était de '+
+      A.mod.depth.toFixed(1)+'</div></div>'+
     '<div class="stat"><div class="k">Crête réelle</div><div class="v">'+
       '<span class="x">'+mn(res.tpOut.toFixed(2))+'</span></div><div class="d">dBTP'+
       (res.reductionDb>0.05?' · '+res.reductionDb.toFixed(1)+' dB de limitation':' · sans limitation')+'</div></div>'+
