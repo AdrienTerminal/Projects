@@ -785,46 +785,81 @@ function smoothOctave(db, binHz, frac){
   return out;
 }
 
+
+/* Les encodages avec perte (MP3, AAC, Opus) coupent net le haut du spectre.
+   On repère ce mur pour ne pas le confondre avec un vrai manque d'aigus. */
+function detectBandwidth(spec){
+  const {power,binHz}=spec;
+  const db=new Float64Array(power.length);
+  for(let b=0;b<power.length;b++) db[b]=10*Math.log10(Math.max(power[b],1e-30));
+  const sm=smoothOctave(db,binHz,1/3);
+  let ref=0,n=0;
+  for(let b=Math.round(1000/binHz);b<Math.round(6000/binHz);b++){ref+=sm[b];n++;}
+  ref/=n;
+  const thr=ref-32;
+  const top=Math.min(sm.length-1,Math.round(21500/binHz));
+  let cut=top*binHz;
+  for(let b=top;b>Math.round(6000/binHz);b--){
+    if(sm[b]>thr){ cut=b*binHz; break; }
+  }
+  return cut>=19500 ? null : cut;
+}
+
 /* Construit la réponse corrective puis les coefficients du filtre.
    Renvoie aussi la courbe appliquée, pour pouvoir l'afficher. */
 function designMatchFilter(mine, refs, fs, opts){
-  const N=mine.power.length*2;          // taille de FFT d'origine
   const half=mine.power.length;
   const binHz=mine.binHz;
   const {strength, maxCut, maxBoost, taps}=opts;
 
-  // Écart en dB, référence moyennée en échelle logarithmique
+  const toDb=(pw)=>{
+    const fl=Math.max(...pw)*1e-7;
+    const d=new Float64Array(pw.length);
+    for(let b=0;b<pw.length;b++) d[b]=10*Math.log10(Math.max(pw[b],fl));
+    return smoothOctave(d,binHz,1/3);
+  };
+  const dMine=toDb(mine.power);
+  const dRefs=refs.map(r=>toDb(r.power));
+
+  // Là où les références ne sont pas d'accord entre elles, on n'a aucune
+  // certitude : la correction y est atténuée plutôt qu'appliquée à l'aveugle.
   const raw=new Float64Array(half);
-  const floorA=Math.max(...mine.power)*1e-7;
+  const trust=new Float64Array(half);
   for(let b=0;b<half;b++){
-    const a=Math.max(mine.power[b],floorA);
-    let acc=0;
-    for(const r of refs){
-      const fl=Math.max(...r.power)*1e-7;
-      acc+=10*Math.log10(Math.max(r.power[b],fl));
-    }
-    raw[b]=acc/refs.length - 10*Math.log10(a);
+    let sum=0,lo=Infinity,hi=-Infinity;
+    for(const d of dRefs){ sum+=d[b]; if(d[b]<lo)lo=d[b]; if(d[b]>hi)hi=d[b]; }
+    raw[b]=sum/dRefs.length - dMine[b];
+    const spread=dRefs.length>1 ? hi-lo : 0;
+    trust[b]=Math.max(0.25, Math.min(1, 1-(spread-5)/12));
   }
 
-  const sm=smoothOctave(raw,binHz,1/3);
+  // Plus haute fréquence utilisable : celle de la référence la plus étroite.
+  let bw=Infinity;
+  for(const r of refs){ const c=detectBandwidth(r); if(c!==null && c<bw) bw=c; }
+  const mineBw=detectBandwidth(mine);
+  if(mineBw!==null && mineBw<bw) bw=mineBw;
+  if(!isFinite(bw)) bw=20000;
+
+  const sm=raw;
 
   // Recentrage : la correction ne doit pas changer le niveau global,
   // seulement la répartition. On retire la moyenne de la zone utile.
   let mean=0,cnt=0;
-  for(let b=Math.round(100/binHz);b<Math.round(8000/binHz);b++){mean+=sm[b];cnt++;}
+  for(let b=Math.round(100/binHz);b<Math.round(Math.min(8000,bw*0.8)/binHz);b++){mean+=sm[b];cnt++;}
   mean/=cnt;
 
   const curve=new Float64Array(half);
   for(let b=0;b<half;b++){
     const f=b*binHz;
-    let v=(sm[b]-mean)*strength;
+    let v=(sm[b]-mean)*strength*trust[b];
     if(v<-maxCut) v=-maxCut;
     if(v>maxBoost) v=maxBoost;
-    // On ne touche pas aux extrémités : rien de musical sous 20 Hz,
-    // et on relâche au-dessus de 17 kHz pour éviter les artefacts.
+    // Rien sous 20 Hz, et on relâche avant la limite de bande utile :
+    // au-delà, la référence ne dit plus rien de fiable.
     if(f<20) v=curve[Math.max(0,b-1)];
-    if(f>17000){
-      const k=Math.max(0,1-(f-17000)/3000);
+    const start=bw*0.8;
+    if(f>start){
+      const k=Math.max(0,1-(f-start)/(bw-start));
       v*=k;
     }
     curve[b]=v;
@@ -849,7 +884,7 @@ function designMatchFilter(mine, refs, fs, opts){
     const w=0.5-0.5*Math.cos(2*Math.PI*i/(taps-1));
     h[i]=re[k]*w;
   }
-  return {taps:h, curve, binHz};
+  return {taps:h, curve, binHz, bandwidth:bw, trust};
 }
 
 /* Convolution par blocs (recouvrement-addition) */
@@ -1144,7 +1179,7 @@ async function analyseSlot(file, keepAudio){
   const lra=loudnessRange(t.channels,t.sampleRate);
   return {
     name:t.name, lufs, tp:dB(tp), plr:dB(tp)-lufs, lra,
-    spec, bands:bandLevels(spec), sampleRate:t.sampleRate,
+    spec, bands:bandLevels(spec), bw:detectBandwidth(spec), sampleRate:t.sampleRate,
     channels: keepAudio ? t.channels : null
   };
 }
@@ -1164,7 +1199,8 @@ async function loadSlot(key, files){
     }else{
       slots.B=[];
       for(const f of files) slots.B.push(await analyseSlot(f,false));
-      info.innerHTML=slots.B.map(r=>'<span class="val">'+r.name+'</span> '+mn(r.lufs.toFixed(1))+' LUFS').join('<br>');
+      info.innerHTML=slots.B.map(r=>'<span class="val">'+r.name+'</span> '+mn(r.lufs.toFixed(1))+' LUFS'+
+        (r.bw!==null?' · <span class="alert">coupé à '+(r.bw/1000).toFixed(1)+' kHz</span>':'')).join('<br>');
     }
     el('slot'+key).classList.add('filled');
   }catch(e){
@@ -1241,6 +1277,14 @@ function drawVerdict(){
     lines.push('Les deux morceaux sont très proches, en spectre comme en dynamique. À ce stade le fichier n\'est plus en cause : vérifie que la normalisation est bien active là où tu écoutes. Elle est désactivée sur le lecteur web de Spotify et sur les appareils externes comme les téléviseurs et les enceintes connectées.');
   }
   html+=lines.map(l=>'<p>'+l+'</p>').join('');
+  const cut=R.filter(r=>r.bw!==null);
+  if(cut.length){
+    const low=Math.min(...cut.map(r=>r.bw));
+    html+='<p class="warn">'+(cut.length>1?cut.length+' de tes références sont coupées':'Une de tes références est coupée')+
+      ' à '+(low/1000).toFixed(1)+' kHz : c\'est un encodage avec perte, un MP3 ou un fichier récupéré en streaming. '+
+      'Au-dessus de cette limite l\'écart affiché vient du codec, pas de ton mix. Ne tiens pas compte des dernières bandes, '+
+      'et la correction automatique s\'y arrête d\'elle-même.</p>';
+  }
   html+='<p class="muted">Une seule référence ne prouve rien à elle seule. Recommence avec deux ou trois morceaux différents : ce qui revient à chaque fois est réel.</p>';
   html+='</div>';
 
@@ -1339,6 +1383,13 @@ async function runFix(){
      (res.reductionDb>0.05?', avec '+res.reductionDb.toFixed(1)+' dB de limitation':', sans limitation')+'.</p>';
   if(worst>10){
     h+='<p class="warn">La correction atteint '+worst.toFixed(0)+' dB sur une bande. C\'est beaucoup pour un filtre appliqué après coup : le déséquilibre vient du mix lui-même. Le fichier corrigé sonnera mieux, mais reprendre ce point dans FL Studio donnera un bien meilleur résultat.</p>';
+  }
+  if(isFinite(f.bandwidth) && f.bandwidth<19500){
+    h+='<p>La correction s\'arrête à '+(f.bandwidth/1000).toFixed(1)+' kHz, là où tes références sont coupées par leur encodage. Tes aigus au-dessus ont été laissés intacts.</p>';
+  }
+  if(R.length>1){
+    const weak=[...f.trust].filter(v=>v<0.6).length/f.trust.length;
+    if(weak>0.15) h+='<p>Tes références ne sont pas d\'accord entre elles sur une partie du spectre. La correction y a été atténuée : quand elles divergent, il n\'y a pas de vérité à viser.</p>';
   }
   h+='<p>Écoute avant de publier. La correction est calculée sur la moyenne du morceau entier : elle remet la balance générale d\'aplomb, elle ne règle pas un passage en particulier. Le filtre est à phase linéaire, donc tes transitoires ne sont pas décalés.</p>';
   h+='</div>';
