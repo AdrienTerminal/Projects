@@ -143,6 +143,42 @@ td.title{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowr
 .warn{color:var(--alert)}
 progress{width:100%;height:3px;margin-top:14px;accent-color:var(--lamp)}
 .hidden{display:none}
+/* --- panneau de comparaison --- */
+.compare{margin-top:56px;padding-top:34px;border-top:1px solid var(--rule)}
+h2{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:26px;margin:0 0 8px}
+.compare>p.lede{margin:0 0 22px;color:var(--dim);max-width:64ch}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.slot{
+  border:1px dashed var(--rule);border-radius:3px;background:var(--panel);
+  padding:18px 16px;min-height:92px;cursor:pointer;
+  display:flex;flex-direction:column;justify-content:center;gap:5px;
+}
+.slot:hover,.slot.dragging{border-color:var(--lamp)}
+.slot b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:15px}
+.slot small{color:var(--dim);font-size:12.5px;line-height:1.45}
+.slot.filled{border-style:solid}
+.slot .val{color:var(--lamp);font-size:13px}
+.verdict{margin-top:26px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);
+  border:1px solid var(--rule);border-radius:3px;margin-bottom:26px;overflow:hidden}
+.metrics div{background:var(--panel);padding:12px 14px}
+.metrics span{display:block;font-size:11.5px;color:var(--dim);margin-bottom:3px}
+.metrics b{font-weight:500;font-size:15px}
+.metrics b.two{font-size:14px}
+.spectrum{border:1px solid var(--rule);border-radius:3px;background:var(--panel);padding:14px 16px}
+.brow{display:grid;grid-template-columns:62px 1fr 62px;align-items:center;gap:10px;height:26px}
+.btrack{position:relative;height:11px;background:rgba(46,58,77,.45);border-radius:2px}
+.btrack::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--rule)}
+.bfill{position:absolute;top:0;bottom:0;border-radius:2px;background:var(--lamp);opacity:.85}
+.bfill.neg{background:var(--alert)}
+.blabel{font-size:12px;color:var(--dim);text-align:right}
+.bval{font-size:12px}
+.axis{display:grid;grid-template-columns:62px 1fr 62px;gap:10px;font-size:11px;color:var(--dim);margin-top:8px}
+.axis div:nth-child(2){display:flex;justify-content:space-between}
+.reading{margin-top:22px;font-size:14px;max-width:70ch}
+.reading p{margin:0 0 11px}
+.reading em{font-style:normal;color:var(--lamp)}
+@media (max-width:640px){.slots{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
 @media (prefers-reduced-motion:reduce){.travel,.pip{transition:none}}
 @media (max-width:640px){
   h1{font-size:32px}
@@ -218,6 +254,25 @@ progress{width:100%;height:3px;margin-top:14px;accent-color:var(--lamp)}
 </div>
 
 <div class="notes" id="notes"></div>
+
+<section class="compare">
+  <h2>Pourquoi ça sonne moins fort</h2>
+  <p class="lede">Si un titre est déjà au bon niveau mais paraît quand même en retrait, ce n'est plus une question de volume : c'est la répartition de l'énergie dans le spectre. Compare-le à un morceau qui, lui, sonne fort. Un fichier que tu possèdes, ou une référence que tu utilises déjà dans FL Studio.</p>
+  <div class="slots">
+    <div class="slot" id="slotA" tabindex="0" role="button">
+      <b>Ton titre</b>
+      <small id="infoA">FLAC ou WAV. Clique ou dépose.</small>
+    </div>
+    <div class="slot" id="slotB" tabindex="0" role="button">
+      <b>La référence</b>
+      <small id="infoB">Un morceau du même genre qui sonne fort chez toi.</small>
+    </div>
+  </div>
+  <input type="file" id="pickA" accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
+  <input type="file" id="pickB" accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
+  <progress id="prog2" class="hidden" max="100" value="0"></progress>
+  <div class="verdict hidden" id="verdict"></div>
+</section>
 
 </div>
 
@@ -565,7 +620,121 @@ function encodeWav24(channels, sampleRate){
 }
 
 /* ==================================================================
-   7. INTERFACE
+   8. ANALYSE COMPARATIVE — répartition spectrale et dynamique
+   ================================================================== */
+
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){const tr=re[i];re[i]=re[j];re[j]=tr;const ti=im[i];im[i]=im[j];im[j]=ti;}
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang), h=len>>1;
+    for(let i=0;i<n;i+=len){
+      let cr=1,ci=0;
+      for(let j=0;j<h;j++){
+        const ur=re[i+j], ui=im[i+j];
+        const xr=re[i+j+h], xi=im[i+j+h];
+        const vr=xr*cr-xi*ci, vi=xr*ci+xi*cr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi;
+        re[i+j+h]=ur-vr; im[i+j+h]=ui-vi;
+        const t=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=t;
+      }
+    }
+  }
+}
+
+/* Spectre moyen sur les passages qui jouent vraiment (le silence est écarté).
+   On échantillonne des fenêtres réparties sur tout le morceau plutôt que
+   de tout analyser : la moyenne converge bien avant. */
+function averageSpectrum(channels, fs, gain){
+  const N=8192, half=N>>1;
+  const n=channels[0].length;
+  if(n<N) return null;
+  const win=new Float64Array(N);
+  for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+
+  const maxFrames=400;
+  const nPos=Math.max(1,Math.floor((n-N)/N));
+  const stride=Math.max(1,Math.floor(nPos/maxFrames));
+
+  // Seuil de silence : on garde ce qui est au-dessus du centile bas d'énergie
+  const energies=[];
+  for(let f=0;f<nPos;f+=stride){
+    const o=f*N; let e=0;
+    for(let i=0;i<N;i+=16){const v=channels[0][o+i]; e+=v*v;}
+    energies.push(e);
+  }
+  const sorted=[...energies].sort((a,b)=>a-b);
+  const floor=sorted[Math.floor(sorted.length*0.35)]*0.25;
+
+  const power=new Float64Array(half);
+  let frames=0, k=0;
+  for(let f=0;f<nPos;f+=stride,k++){
+    if(energies[k]<floor) continue;
+    const o=f*N;
+    for(const ch of channels){
+      const re=new Float64Array(N), im=new Float64Array(N);
+      for(let i=0;i<N;i++) re[i]=ch[o+i]*win[i]*gain;
+      fft(re,im);
+      for(let b=0;b<half;b++) power[b]+=re[b]*re[b]+im[b]*im[b];
+    }
+    frames++;
+  }
+  if(!frames) return null;
+  for(let b=0;b<half;b++) power[b]/=frames;
+  return {power, binHz:fs/N};
+}
+
+const BANDS=[
+  [22,44,'31 Hz'],[44,88,'63 Hz'],[88,177,'125 Hz'],[177,354,'250 Hz'],
+  [354,707,'500 Hz'],[707,1414,'1 kHz'],[1414,2828,'2 kHz'],
+  [2828,5657,'4 kHz'],[5657,11314,'8 kHz'],[11314,20000,'16 kHz']
+];
+
+function bandLevels(spec){
+  if(!spec) return null;
+  const {power,binHz}=spec;
+  return BANDS.map(([lo,hi,label])=>{
+    let sum=0;
+    const b0=Math.max(1,Math.round(lo/binHz)), b1=Math.min(power.length-1,Math.round(hi/binHz));
+    for(let b=b0;b<=b1;b++) sum+=power[b];
+    return {label, db: 10*Math.log10(Math.max(sum,1e-30))};
+  });
+}
+
+/* Étendue de loudness (EBU Tech 3342) : écart entre les passages calmes
+   et les passages forts, une fois le silence écarté. */
+function loudnessRange(channels, fs){
+  const per=channels.map(c=>segmentPower(c,fs,1));
+  const step=per[0].step, nSeg=per[0].segs.length;
+  if(nSeg<30) return null;
+  const W=[1,1,1,1.41,1.41];
+  const short=[];
+  for(let s=0;s+30<=nSeg;s+=10){
+    let sum=0;
+    for(let c=0;c<per.length;c++){
+      let acc=0;
+      for(let k=0;k<30;k++) acc+=per[c].segs[s+k];
+      sum+=(W[c]!==undefined?W[c]:1)*(acc/(step*30));
+    }
+    short.push({z:sum, l: sum>0? -0.691+10*Math.log10(sum) : -Infinity});
+  }
+  const abs=short.filter(v=>v.l>-70);
+  if(abs.length<2) return null;
+  const mean=abs.reduce((a,v)=>a+v.z,0)/abs.length;
+  const thr=-0.691+10*Math.log10(mean)-20;
+  const kept=abs.filter(v=>v.l>thr).map(v=>v.l).sort((a,b)=>a-b);
+  if(kept.length<2) return null;
+  const q=p=>kept[Math.min(kept.length-1,Math.round(p*(kept.length-1)))];
+  return q(0.95)-q(0.10);
+}
+
+/* ==================================================================
+   9. INTERFACE
    ================================================================== */
 
 const LO=-30, HI=0;
@@ -799,6 +968,129 @@ function modeHint(){
 modeHint();
 drawScale();
 render();
+
+/* ==================================================================
+   10. COMPARAISON — interface
+   ================================================================== */
+
+const slots={A:null,B:null};
+
+async function analyseSlot(key, file){
+  const t=await loadFile(file);
+  const lufs=integratedLoudness(t.channels,t.sampleRate);
+  const tp=(await truePeakScan(t.channels, maxAbs(t.channels)*0.5, false, null)).peak;
+  const g=lin(-14-lufs);
+  const bands=bandLevels(averageSpectrum(t.channels,t.sampleRate,g));
+  const lra=loudnessRange(t.channels,t.sampleRate);
+  return {name:t.name, lufs, tp:dB(tp), plr:dB(tp)-lufs, lra, bands};
+}
+
+async function loadSlot(key, file){
+  const info=el('info'+key);
+  info.textContent='Analyse en cours…';
+  el('prog2').classList.remove('hidden');
+  try{
+    slots[key]=await analyseSlot(key,file);
+    const s=slots[key];
+    info.innerHTML='<span class="val">'+s.name+'</span><br>'+
+      mn(s.lufs.toFixed(1))+' LUFS · '+mn(s.tp.toFixed(1))+' dBTP'+
+      (s.lra!==null?' · étendue '+s.lra.toFixed(1)+' LU':'');
+    el('slot'+key).classList.add('filled');
+  }catch(e){
+    info.textContent='Fichier illisible. Essaie un FLAC ou un WAV.';
+    slots[key]=null;
+  }
+  el('prog2').classList.add('hidden');
+  drawVerdict();
+}
+
+const GROUPS=[
+  {name:'graves',    idx:[0,1],   label:'sous les 90 Hz'},
+  {name:'basmedium', idx:[2,3],   label:'entre 90 et 350 Hz'},
+  {name:'medium',    idx:[4,5],   label:'entre 350 Hz et 1,5 kHz'},
+  {name:'presence',  idx:[6,7],   label:'entre 1,5 et 6 kHz'},
+  {name:'aigus',     idx:[8,9],   label:'au-dessus de 6 kHz'}
+];
+
+function drawVerdict(){
+  const box=el('verdict');
+  const A=slots.A, B=slots.B;
+  if(!A||!B){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+
+  const diffs=A.bands.map((b,i)=>b.db-B.bands[i].db);
+  const RANGE=12;
+  let html='';
+
+  html+='<div class="metrics">'+
+    '<div><span>Niveau</span><b class="two">'+mn(A.lufs.toFixed(1))+' contre '+mn(B.lufs.toFixed(1))+' LUFS</b></div>'+
+    '<div><span>Crête réelle</span><b class="two">'+mn(A.tp.toFixed(1))+' contre '+mn(B.tp.toFixed(1))+' dBTP</b></div>'+
+    '<div><span>Réserve de crête</span><b class="two">'+A.plr.toFixed(1)+' contre '+B.plr.toFixed(1)+' dB</b></div>'+
+    '<div><span>Étendue</span><b class="two">'+
+      (A.lra!==null?A.lra.toFixed(1):'—')+' contre '+(B.lra!==null?B.lra.toFixed(1):'—')+' LU</b></div>'+
+    '</div>';
+
+  html+='<div class="spectrum">';
+  A.bands.forEach((b,i)=>{
+    const d=Math.max(-RANGE,Math.min(RANGE,diffs[i]));
+    const w=Math.abs(d)/RANGE*50;
+    const left=d>=0?50:50-w;
+    html+='<div class="brow">'+
+      '<div class="blabel">'+b.label+'</div>'+
+      '<div class="btrack"><div class="bfill'+(d<0?' neg':'')+'" style="left:'+left+'%;width:'+w+'%"></div></div>'+
+      '<div class="bval'+(Math.abs(diffs[i])>3?(diffs[i]<0?' alert':' lamp'):' muted')+'">'+
+        mn((diffs[i]>0?'+':'')+diffs[i].toFixed(1))+' dB</div>'+
+      '</div>';
+  });
+  html+='<div class="axis"><div></div><div><span>'+mn('-12')+' dB</span><span>identique</span><span>+12 dB</span></div><div></div></div>';
+  html+='</div>';
+
+  const g={};
+  GROUPS.forEach(G=>{ g[G.name]=G.idx.reduce((a,i)=>a+diffs[i],0)/G.idx.length; });
+
+  html+='<div class="reading">';
+  const lines=[];
+  if(g.graves>2.5){
+    lines.push('Tu as <em>'+g.graves.toFixed(1)+' dB de grave en plus</em> que ta référence '+GROUPS[0].label+'. C\'est la cause la plus fréquente : le calcul de loudness compte cette énergie presque autant que le reste, alors que l\'oreille l\'entend très peu. Pour tenir dans le budget de −14 LUFS, tout le reste du morceau doit descendre. Un passe-haut vers 30 Hz et quelques dB en moins entre 40 et 80 Hz libèrent en général beaucoup de place.');
+  }
+  if(g.presence<-2.5){
+    lines.push('Il te manque <em>'+Math.abs(g.presence).toFixed(1)+' dB '+GROUPS[3].label+'</em>. C\'est exactement la zone où l\'oreille est la plus sensible, celle qui donne l\'impression de présence. Deux morceaux au même LUFS mais avec un écart pareil dans cette bande ne sonnent pas du tout aussi fort.');
+  }
+  if(g.medium<-2.5){
+    lines.push('Le bas-médium est <em>'+Math.abs(g.medium).toFixed(1)+' dB en retrait</em> '+GROUPS[2].label+'. C\'est ce qui donne le corps. Un mix creusé là devient fin et recule, même au bon niveau.');
+  }
+  if(g.aigus<-3){
+    lines.push('Tes aigus sont <em>'+Math.abs(g.aigus).toFixed(1)+' dB sous</em> ceux de la référence '+GROUPS[4].label+'. Ça n\'agit pas beaucoup sur la sensation de puissance, mais ça rend le morceau plus terne et plus lointain.');
+  }
+  if(g.aigus>4){
+    lines.push('Tes aigus sont <em>'+g.aigus.toFixed(1)+' dB au-dessus</em> de la référence. Ça peut fatiguer avant de sonner fort.');
+  }
+  if(A.lra!==null && B.lra!==null && A.lra-B.lra>4){
+    lines.push('Ton morceau varie de <em>'+A.lra.toFixed(1)+' LU entre ses passages calmes et ses passages forts</em>, contre '+B.lra.toFixed(1)+' pour la référence. Comme le niveau affiché est une moyenne, tes moments forts sont au bon endroit mais tout le reste passe en dessous.');
+  }
+  if(A.plr-B.plr>4){
+    lines.push('Tu laisses <em>'+A.plr.toFixed(1)+' dB entre ton niveau moyen et tes crêtes</em>, contre '+B.plr.toFixed(1)+' pour la référence. Une compression un peu plus ferme sur le bus master resserre ça.');
+  }
+  if(!lines.length){
+    lines.push('Les deux morceaux sont très proches, en spectre comme en dynamique. À ce stade le fichier n\'est plus en cause : vérifie que la normalisation est bien active là où tu écoutes. Elle est désactivée sur le lecteur web de Spotify et sur les appareils externes comme les téléviseurs et les enceintes connectées.');
+  }
+  html+=lines.map(l=>'<p>'+l+'</p>').join('');
+  html+='<p class="muted">Une seule référence ne prouve rien à elle seule. Recommence avec deux ou trois morceaux différents : ce qui revient à chaque fois est réel.</p>';
+  html+='</div>';
+
+  box.innerHTML=html;
+}
+
+['A','B'].forEach(k=>{
+  const slot=el('slot'+k), pick=el('pick'+k);
+  slot.addEventListener('click',()=>pick.click());
+  slot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick.click();}});
+  pick.addEventListener('change',e=>{ if(e.target.files[0]) loadSlot(k,e.target.files[0]); pick.value=''; });
+  ['dragenter','dragover'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.add('dragging');}));
+  ['dragleave','drop'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.remove('dragging');}));
+  slot.addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files[0]) loadSlot(k,e.dataTransfer.files[0]);});
+});
+
 </script>
 </body>
 </html>
