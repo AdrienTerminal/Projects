@@ -178,7 +178,14 @@ h2{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:26
 .reading{margin-top:22px;font-size:14px;max-width:70ch}
 .reading p{margin:0 0 11px}
 .reading em{font-style:normal;color:var(--lamp)}
-@media (max-width:640px){.slots{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
+.fixbar{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;margin:28px 0 0;
+  padding-top:22px;border-top:1px solid var(--rule)}
+.fixbar .go{margin-left:auto}
+.curve{margin-top:22px}
+.curve h3{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:16px;margin:0 0 10px}
+.after{border-left:2px solid var(--good);padding-left:14px;margin-top:24px}
+@media (max-width:640px){.slots{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}
+  .fixbar .go{margin-left:0;width:100%}}
 @media (prefers-reduced-motion:reduce){.travel,.pip{transition:none}}
 @media (max-width:640px){
   h1{font-size:32px}
@@ -265,13 +272,26 @@ h2{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:26
     </div>
     <div class="slot" id="slotB" tabindex="0" role="button">
       <b>La référence</b>
-      <small id="infoB">Un morceau du même genre qui sonne fort chez toi.</small>
+      <small id="infoB">Un ou plusieurs morceaux du même genre qui sonnent fort chez toi.</small>
     </div>
   </div>
   <input type="file" id="pickA" accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
-  <input type="file" id="pickB" accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
+  <input type="file" id="pickB" multiple accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
   <progress id="prog2" class="hidden" max="100" value="0"></progress>
   <div class="verdict hidden" id="verdict"></div>
+
+  <div class="fixbar hidden" id="fixbar">
+    <div class="field">
+      <label for="force">Ampleur de la correction</label>
+      <select id="force">
+        <option value="soft">Prudente · au plus 8 dB</option>
+        <option value="normal" selected>Normale · au plus 15 dB</option>
+        <option value="hard">Ferme · corriger à fond</option>
+      </select>
+    </div>
+    <button class="go" id="fix">Corriger et remettre à niveau</button>
+  </div>
+  <div id="fixresult"></div>
 </section>
 
 </div>
@@ -734,7 +754,147 @@ function loudnessRange(channels, fs){
 }
 
 /* ==================================================================
-   9. INTERFACE
+   11. CORRECTION AUTOMATIQUE
+   On compare le spectre moyen du morceau à celui des références, on
+   lisse l'écart au tiers d'octave, puis on l'applique en filtre à
+   phase linéaire — donc sans décaler les transitoires.
+   ================================================================== */
+
+function ifft(re,im){
+  const n=re.length;
+  for(let i=0;i<n;i++) im[i]=-im[i];
+  fft(re,im);
+  for(let i=0;i<n;i++){ re[i]/=n; im[i]=-im[i]/n; }
+}
+
+/* Lissage à fraction d'octave : chaque point devient la moyenne de ses
+   voisins sur une largeur proportionnelle à sa fréquence. */
+function smoothOctave(db, binHz, frac){
+  const n=db.length;
+  const pre=new Float64Array(n+1);
+  for(let i=0;i<n;i++) pre[i+1]=pre[i]+db[i];
+  const out=new Float64Array(n);
+  const r=Math.pow(2,frac/2);
+  for(let i=0;i<n;i++){
+    const f=i*binHz;
+    let lo=Math.max(1,Math.floor(f/r/binHz));
+    let hi=Math.min(n-1,Math.ceil(f*r/binHz));
+    if(hi<=lo){ out[i]=db[i]; continue; }
+    out[i]=(pre[hi+1]-pre[lo])/(hi+1-lo);
+  }
+  return out;
+}
+
+/* Construit la réponse corrective puis les coefficients du filtre.
+   Renvoie aussi la courbe appliquée, pour pouvoir l'afficher. */
+function designMatchFilter(mine, refs, fs, opts){
+  const N=mine.power.length*2;          // taille de FFT d'origine
+  const half=mine.power.length;
+  const binHz=mine.binHz;
+  const {strength, maxCut, maxBoost, taps}=opts;
+
+  // Écart en dB, référence moyennée en échelle logarithmique
+  const raw=new Float64Array(half);
+  const floorA=Math.max(...mine.power)*1e-7;
+  for(let b=0;b<half;b++){
+    const a=Math.max(mine.power[b],floorA);
+    let acc=0;
+    for(const r of refs){
+      const fl=Math.max(...r.power)*1e-7;
+      acc+=10*Math.log10(Math.max(r.power[b],fl));
+    }
+    raw[b]=acc/refs.length - 10*Math.log10(a);
+  }
+
+  const sm=smoothOctave(raw,binHz,1/3);
+
+  // Recentrage : la correction ne doit pas changer le niveau global,
+  // seulement la répartition. On retire la moyenne de la zone utile.
+  let mean=0,cnt=0;
+  for(let b=Math.round(100/binHz);b<Math.round(8000/binHz);b++){mean+=sm[b];cnt++;}
+  mean/=cnt;
+
+  const curve=new Float64Array(half);
+  for(let b=0;b<half;b++){
+    const f=b*binHz;
+    let v=(sm[b]-mean)*strength;
+    if(v<-maxCut) v=-maxCut;
+    if(v>maxBoost) v=maxBoost;
+    // On ne touche pas aux extrémités : rien de musical sous 20 Hz,
+    // et on relâche au-dessus de 17 kHz pour éviter les artefacts.
+    if(f<20) v=curve[Math.max(0,b-1)];
+    if(f>17000){
+      const k=Math.max(0,1-(f-17000)/3000);
+      v*=k;
+    }
+    curve[b]=v;
+  }
+
+  // Réponse en amplitude -> réponse impulsionnelle à phase nulle
+  const M=half*2;
+  const re=new Float64Array(M), im=new Float64Array(M);
+  for(let b=0;b<half;b++){
+    const g=Math.pow(10,curve[b]/20);
+    re[b]=g;
+    if(b>0) re[M-b]=g;
+    if(b===half-1) re[half]=g;
+  }
+  ifft(re,im);
+
+  // Recentrage et fenêtrage
+  const h=new Float32Array(taps);
+  const c=taps>>1;
+  for(let i=0;i<taps;i++){
+    const k=(i-c+M)%M;
+    const w=0.5-0.5*Math.cos(2*Math.PI*i/(taps-1));
+    h[i]=re[k]*w;
+  }
+  return {taps:h, curve, binHz};
+}
+
+/* Convolution par blocs (recouvrement-addition) */
+function convolve(channels, h, onProgress){
+  const L=h.length;
+  let nf=1; while(nf < L*4) nf<<=1;
+  const blk=nf-L+1;
+
+  const hr=new Float64Array(nf), hi=new Float64Array(nf);
+  for(let i=0;i<L;i++) hr[i]=h[i];
+  fft(hr,hi);
+
+  const n=channels[0].length;
+  const delay=L>>1;
+  const total=channels.length*Math.ceil(n/blk);
+  const out=[]; let done=0;
+
+  for(let c=0;c<channels.length;c++){
+    const src=channels[c];
+    const acc=new Float64Array(n+L+blk);
+    for(let p=0;p<n;p+=blk){
+      const re=new Float64Array(nf), im=new Float64Array(nf);
+      const len=Math.min(blk,n-p);
+      for(let i=0;i<len;i++) re[i]=src[p+i];
+      fft(re,im);
+      for(let i=0;i<nf;i++){
+        const a=re[i]*hr[i]-im[i]*hi[i];
+        const b=re[i]*hi[i]+im[i]*hr[i];
+        re[i]=a; im[i]=b;
+      }
+      ifft(re,im);
+      const m=len+L-1;
+      for(let i=0;i<m;i++) acc[p+i]+=re[i];
+      done++;
+      if(onProgress) onProgress(done/total);
+    }
+    const dst=new Float32Array(n);
+    for(let i=0;i<n;i++) dst[i]=acc[i+delay];
+    out.push(dst);
+  }
+  return out;
+}
+
+/* ==================================================================
+   12. INTERFACE
    ================================================================== */
 
 const LO=-30, HI=0;
@@ -973,32 +1133,43 @@ render();
    10. COMPARAISON — interface
    ================================================================== */
 
-const slots={A:null,B:null};
+const slots={A:null,B:[]};
 
-async function analyseSlot(key, file){
+async function analyseSlot(file, keepAudio){
   const t=await loadFile(file);
   const lufs=integratedLoudness(t.channels,t.sampleRate);
   const tp=(await truePeakScan(t.channels, maxAbs(t.channels)*0.5, false, null)).peak;
   const g=lin(-14-lufs);
-  const bands=bandLevels(averageSpectrum(t.channels,t.sampleRate,g));
+  const spec=averageSpectrum(t.channels,t.sampleRate,g);
   const lra=loudnessRange(t.channels,t.sampleRate);
-  return {name:t.name, lufs, tp:dB(tp), plr:dB(tp)-lufs, lra, bands};
+  return {
+    name:t.name, lufs, tp:dB(tp), plr:dB(tp)-lufs, lra,
+    spec, bands:bandLevels(spec), sampleRate:t.sampleRate,
+    channels: keepAudio ? t.channels : null
+  };
 }
 
-async function loadSlot(key, file){
+async function loadSlot(key, files){
   const info=el('info'+key);
   info.textContent='Analyse en cours…';
   el('prog2').classList.remove('hidden');
+  el('fixresult').innerHTML='';
   try{
-    slots[key]=await analyseSlot(key,file);
-    const s=slots[key];
-    info.innerHTML='<span class="val">'+s.name+'</span><br>'+
-      mn(s.lufs.toFixed(1))+' LUFS · '+mn(s.tp.toFixed(1))+' dBTP'+
-      (s.lra!==null?' · étendue '+s.lra.toFixed(1)+' LU':'');
+    if(key==='A'){
+      slots.A=await analyseSlot(files[0], true);
+      const a=slots.A;
+      info.innerHTML='<span class="val">'+a.name+'</span><br>'+
+        mn(a.lufs.toFixed(1))+' LUFS · '+mn(a.tp.toFixed(1))+' dBTP'+
+        (a.lra!==null?' · étendue '+a.lra.toFixed(1)+' LU':'');
+    }else{
+      slots.B=[];
+      for(const f of files) slots.B.push(await analyseSlot(f,false));
+      info.innerHTML=slots.B.map(r=>'<span class="val">'+r.name+'</span> '+mn(r.lufs.toFixed(1))+' LUFS').join('<br>');
+    }
     el('slot'+key).classList.add('filled');
   }catch(e){
     info.textContent='Fichier illisible. Essaie un FLAC ou un WAV.';
-    slots[key]=null;
+    slots[key]=key==='B'?[]:null;
   }
   el('prog2').classList.add('hidden');
   drawVerdict();
@@ -1014,10 +1185,18 @@ const GROUPS=[
 
 function drawVerdict(){
   const box=el('verdict');
-  const A=slots.A, B=slots.B;
-  if(!A||!B){ box.classList.add('hidden'); return; }
+  const A=slots.A, R=slots.B;
+  if(!A||!R.length){ box.classList.add('hidden'); el('fixbar').classList.add('hidden'); return; }
   box.classList.remove('hidden');
+  el('fixbar').classList.remove('hidden');
 
+  const B={
+    lufs: R.reduce((a,r)=>a+r.lufs,0)/R.length,
+    tp:   R.reduce((a,r)=>a+r.tp,0)/R.length,
+    plr:  R.reduce((a,r)=>a+r.plr,0)/R.length,
+    lra:  R.every(r=>r.lra!==null) ? R.reduce((a,r)=>a+r.lra,0)/R.length : null,
+    bands: A.bands.map((_,i)=>({db: R.reduce((a,r)=>a+r.bands[i].db,0)/R.length}))
+  };
   const diffs=A.bands.map((b,i)=>b.db-B.bands[i].db);
   const RANGE=12;
   let html='';
@@ -1030,20 +1209,7 @@ function drawVerdict(){
       (A.lra!==null?A.lra.toFixed(1):'—')+' contre '+(B.lra!==null?B.lra.toFixed(1):'—')+' LU</b></div>'+
     '</div>';
 
-  html+='<div class="spectrum">';
-  A.bands.forEach((b,i)=>{
-    const d=Math.max(-RANGE,Math.min(RANGE,diffs[i]));
-    const w=Math.abs(d)/RANGE*50;
-    const left=d>=0?50:50-w;
-    html+='<div class="brow">'+
-      '<div class="blabel">'+b.label+'</div>'+
-      '<div class="btrack"><div class="bfill'+(d<0?' neg':'')+'" style="left:'+left+'%;width:'+w+'%"></div></div>'+
-      '<div class="bval'+(Math.abs(diffs[i])>3?(diffs[i]<0?' alert':' lamp'):' muted')+'">'+
-        mn((diffs[i]>0?'+':'')+diffs[i].toFixed(1))+' dB</div>'+
-      '</div>';
-  });
-  html+='<div class="axis"><div></div><div><span>'+mn('-12')+' dB</span><span>identique</span><span>+12 dB</span></div><div></div></div>';
-  html+='</div>';
+  html+=barBlock(A.bands.map((b,i)=>({label:b.label,db:diffs[i]})),12);
 
   const g={};
   GROUPS.forEach(G=>{ g[G.name]=G.idx.reduce((a,i)=>a+diffs[i],0)/G.idx.length; });
@@ -1085,11 +1251,108 @@ function drawVerdict(){
   const slot=el('slot'+k), pick=el('pick'+k);
   slot.addEventListener('click',()=>pick.click());
   slot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick.click();}});
-  pick.addEventListener('change',e=>{ if(e.target.files[0]) loadSlot(k,e.target.files[0]); pick.value=''; });
+  pick.addEventListener('change',e=>{ if(e.target.files.length) loadSlot(k,[...e.target.files]); pick.value=''; });
   ['dragenter','dragover'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.add('dragging');}));
   ['dragleave','drop'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.remove('dragging');}));
-  slot.addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files[0]) loadSlot(k,e.dataTransfer.files[0]);});
+  slot.addEventListener('drop',e=>{e.preventDefault(); if(e.dataTransfer.files.length) loadSlot(k,[...e.dataTransfer.files]);});
 });
+
+/* ==================================================================
+   13. CORRECTION — interface
+   ================================================================== */
+
+const FORCES={
+  soft:   {strength:0.55, maxCut:8,  maxBoost:4},
+  normal: {strength:0.80, maxCut:15, maxBoost:6},
+  hard:   {strength:1.00, maxCut:22, maxBoost:8}
+};
+
+function curveByBand(curve, binHz){
+  return BANDS.map(([lo,hi,label])=>{
+    const b0=Math.max(1,Math.round(lo/binHz)), b1=Math.min(curve.length-1,Math.round(hi/binHz));
+    let sum=0,n=0;
+    for(let b=b0;b<=b1;b++){sum+=curve[b];n++;}
+    return {label, db:n?sum/n:0};
+  });
+}
+
+function barBlock(rows, range){
+  let h='<div class="spectrum">';
+  rows.forEach(r=>{
+    const d=Math.max(-range,Math.min(range,r.db));
+    const w=Math.abs(d)/range*50, left=d>=0?50:50-w;
+    h+='<div class="brow"><div class="blabel">'+r.label+'</div>'+
+       '<div class="btrack"><div class="bfill'+(d<0?' neg':'')+'" style="left:'+left+'%;width:'+w+'%"></div></div>'+
+       '<div class="bval'+(Math.abs(r.db)>3?(r.db<0?' alert':' lamp'):' muted')+'">'+
+       mn((r.db>0?'+':'')+r.db.toFixed(1))+' dB</div></div>';
+  });
+  h+='<div class="axis"><div></div><div><span>'+mn('-'+range)+' dB</span><span>identique</span><span>+'+range+' dB</span></div><div></div></div>';
+  return h+'</div>';
+}
+
+let fixed=null;
+
+async function runFix(){
+  const A=slots.A, R=slots.B;
+  if(!A||!R.length||!A.channels) return;
+  const opt=Object.assign({taps:4096}, FORCES[el('force').value]);
+  const fsr=A.sampleRate;
+  const target=parseFloat(el('target').value);
+  const ceiling=parseFloat(el('ceiling').value);
+
+  el('fix').disabled=true;
+  el('prog2').classList.remove('hidden'); el('prog2').value=0;
+  el('fixresult').innerHTML='';
+  await new Promise(r=>setTimeout(r,30));
+
+  const f=designMatchFilter(A.spec, R.map(r=>r.spec), fsr, opt);
+  const eq=convolve(A.channels, f.taps, p=>{el('prog2').value=p*50;});
+  await new Promise(r=>setTimeout(r,0));
+
+  // On repasse par la chaîne de mise à niveau : le morceau corrigé
+  // atteint la cible avec l'énergie qui compte, pas avec du grave.
+  const t={channels:eq, sampleRate:fsr};
+  t.lufsIn=integratedLoudness(eq,fsr);
+  t.peakIn=(await truePeakScan(eq, maxAbs(eq)*0.5, false, p=>{el('prog2').value=50+p*20;})).peak;
+  const res=await processTrack(t, target, ceiling, p=>{el('prog2').value=70+p*25;});
+
+  const g=lin(target-integratedLoudness(res.channels,fsr));
+  const specAfter=averageSpectrum(res.channels,fsr,g);
+  const bandsAfter=bandLevels(specAfter);
+  const refBands=BANDS.map((_,i)=>R.reduce((a,r)=>a+r.bands[i].db,0)/R.length);
+  const before=A.bands.map((b,i)=>({label:b.label, db:b.db-refBands[i]}));
+  const after=bandsAfter.map((b,i)=>({label:b.label, db:b.db-refBands[i]}));
+
+  const applied=curveByBand(f.curve,f.binHz);
+  const worst=Math.max(...applied.map(x=>Math.abs(x.db)));
+  const avgBefore=before.reduce((a,x)=>a+Math.abs(x.db),0)/before.length;
+  const avgAfter=after.reduce((a,x)=>a+Math.abs(x.db),0)/after.length;
+
+  fixed={name:A.name, result:res};
+
+  let h='<div class="after">';
+  h+='<div class="curve"><h3>Ce qui a été corrigé</h3>'+barBlock(applied,15)+'</div>';
+  h+='<div class="curve"><h3>Écart à la référence, après correction</h3>'+barBlock(after,12)+'</div>';
+  h+='<div class="reading">';
+  h+='<p>L\'écart moyen à ta référence passe de <em>'+avgBefore.toFixed(1)+' dB</em> à <em>'+avgAfter.toFixed(1)+' dB</em>. '+
+     'Le fichier ressort à '+mn(res.lufsOut.toFixed(1))+' LUFS et '+mn(res.tpOut.toFixed(1))+' dBTP'+
+     (res.reductionDb>0.05?', avec '+res.reductionDb.toFixed(1)+' dB de limitation':', sans limitation')+'.</p>';
+  if(worst>10){
+    h+='<p class="warn">La correction atteint '+worst.toFixed(0)+' dB sur une bande. C\'est beaucoup pour un filtre appliqué après coup : le déséquilibre vient du mix lui-même. Le fichier corrigé sonnera mieux, mais reprendre ce point dans FL Studio donnera un bien meilleur résultat.</p>';
+  }
+  h+='<p>Écoute avant de publier. La correction est calculée sur la moyenne du morceau entier : elle remet la balance générale d\'aplomb, elle ne règle pas un passage en particulier. Le filtre est à phase linéaire, donc tes transitoires ne sont pas décalés.</p>';
+  h+='</div>';
+  h+='<div class="actions"><button class="ghostbtn" id="dlfix">Télécharger le titre corrigé</button></div>';
+  h+='</div>';
+  el('fixresult').innerHTML=h;
+  el('dlfix').onclick=()=>download({name:fixed.name, result:fixed.result});
+
+  el('prog2').classList.add('hidden');
+  el('fix').disabled=false;
+}
+
+el('fix').addEventListener('click',runFix);
+
 
 </script>
 </body>
