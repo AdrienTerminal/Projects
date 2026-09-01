@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aplomb — mise à niveau pour Spotify</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#151b26;
+  --panel:#1d2532;
+  --rule:#2e3a4d;
+  --ink:#e6e3dc;
+  --dim:#8b97a9;
+  --lamp:#f0a63c;
+  --alert:#e0604a;
+  --good:#74bd9c;
+  --scale-lo:-30;
+  --scale-hi:0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.55;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
+
+/* ---- en-tête ---- */
+header{margin-bottom:38px}
+h1{
+  font-family:"IBM Plex Sans Condensed","Segoe UI",sans-serif;
+  font-weight:700;font-size:42px;line-height:1;letter-spacing:-.01em;
+  margin:0 0 10px;
+}
+header p{margin:0;max-width:62ch;color:var(--dim)}
+
+/* ---- règle de loudness : l'élément central ---- */
+.meter{
+  border:1px solid var(--rule);
+  background:var(--panel);
+  border-radius:3px;
+  margin-bottom:22px;
+  overflow:hidden;
+}
+.meter.dragging{border-color:var(--lamp)}
+.scale{
+  position:relative;height:34px;
+  border-bottom:1px solid var(--rule);
+  background:linear-gradient(to bottom,rgba(255,255,255,.02),transparent);
+}
+.tick{position:absolute;top:0;bottom:0;width:1px;background:var(--rule)}
+.tick span{
+  position:absolute;top:9px;left:7px;
+  font-size:11px;color:var(--dim);white-space:nowrap;
+  font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;letter-spacing:.03em;
+}
+.tick.last span{left:auto;right:7px}
+.tick.target{background:var(--lamp);width:2px}
+.tick.target span{color:var(--lamp)}
+
+.lanes{position:relative}
+.lanes:empty,.lanes:has(.dropnote){min-height:150px}
+.dropnote{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:150px;gap:12px;text-align:center;padding:22px;
+}
+.dropnote strong{
+  font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;font-size:19px;
+}
+.dropnote span{color:var(--dim);font-size:13.5px;max-width:46ch}
+
+.lane{
+  position:relative;height:34px;
+  border-bottom:1px solid rgba(46,58,77,.5);
+}
+.lane:last-child{border-bottom:none}
+.lane .name{
+  position:absolute;left:10px;top:8px;font-size:12.5px;color:var(--dim);
+  max-width:34%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  z-index:2;text-shadow:0 0 6px var(--panel),0 0 6px var(--panel);
+}
+.travel{
+  position:absolute;top:16px;height:2px;background:var(--rule);
+  transition:left .7s cubic-bezier(.4,0,.2,1),width .7s cubic-bezier(.4,0,.2,1);
+}
+.pip{
+  position:absolute;top:11px;width:11px;height:11px;margin-left:-5.5px;
+  border-radius:50%;background:var(--dim);
+  transition:left .7s cubic-bezier(.4,0,.2,1),background .3s;
+}
+.pip.done{background:var(--lamp);box-shadow:0 0 9px rgba(240,166,60,.55)}
+.pip.ghost{background:none;border:1px solid var(--rule);width:9px;height:9px;top:12px}
+
+/* ---- réglages ---- */
+.controls{
+  display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;
+  padding:18px 0 20px;border-bottom:1px solid var(--rule);margin-bottom:20px;
+}
+.field select{max-width:270px}
+.hint{font-size:12px;color:var(--dim);margin:-6px 0 20px;max-width:60ch}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12.5px;color:var(--dim)}
+select,button{
+  font-family:inherit;font-size:14px;color:var(--ink);
+  background:var(--panel);border:1px solid var(--rule);
+  border-radius:3px;padding:8px 11px;
+}
+select:focus-visible,button:focus-visible,.meter:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+.go{
+  background:var(--lamp);color:#151b26;border-color:var(--lamp);
+  font-weight:600;padding:9px 20px;cursor:pointer;margin-left:auto;
+}
+.go:disabled{opacity:.35;cursor:default}
+.ghostbtn{cursor:pointer}
+.ghostbtn:hover{border-color:var(--dim)}
+
+/* ---- tableau ---- */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{
+  text-align:right;font-weight:600;color:var(--dim);font-size:12px;
+  padding:0 10px 9px;border-bottom:1px solid var(--rule);
+  font-family:"IBM Plex Sans Condensed",sans-serif;
+}
+th:first-child,td:first-child{text-align:left}
+td{padding:11px 10px;border-bottom:1px solid rgba(46,58,77,.45);text-align:right}
+td.title{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lamp{color:var(--lamp)}
+.alert{color:var(--alert)}
+.good{color:var(--good)}
+.muted{color:var(--dim)}
+.dl{padding:4px 10px;font-size:12.5px;cursor:pointer}
+.notes{margin-top:26px;font-size:13px;color:var(--dim);max-width:70ch}
+.notes p{margin:0 0 9px}
+.warn{color:var(--alert)}
+progress{width:100%;height:3px;margin-top:14px;accent-color:var(--lamp)}
+.hidden{display:none}
+@media (prefers-reduced-motion:reduce){.travel,.pip{transition:none}}
+@media (max-width:640px){
+  h1{font-size:32px}
+  .lane .name{max-width:38%;font-size:11.5px}
+  .tick.thin{display:none}
+  table{font-size:12.5px}
+  td,th{padding-left:5px;padding-right:5px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Aplomb</h1>
+  <p>Dépose tes titres. Chacun ressort au niveau exact que Spotify attend, sans dépasser le plafond de crête. Le calcul suit la norme ITU‑R BS.1770‑4, la même que celle utilisée par les plateformes.</p>
+</header>
+
+<div class="meter" id="meter" tabindex="0" role="button" aria-label="Déposer ou choisir des fichiers audio">
+  <div class="scale" id="scale"></div>
+  <div class="lanes" id="lanes">
+    <div class="dropnote" id="dropnote">
+      <strong>Dépose tes FLAC ou WAV ici</strong>
+      <span>Ou clique pour les choisir. Tout se passe sur ton ordinateur : rien n'est envoyé nulle part.</span>
+    </div>
+  </div>
+</div>
+<input type="file" id="picker" multiple accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
+
+<div class="controls">
+  <div class="field">
+    <label for="target">Niveau visé</label>
+    <select id="target">
+      <option value="-14" selected>−14 LUFS · Spotify, YouTube</option>
+      <option value="-16">−16 LUFS · Apple Music</option>
+      <option value="-11">−11 LUFS · Spotify réglé sur « Fort »</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="ceiling">Plafond de crête</label>
+    <select id="ceiling">
+      <option value="-1" selected>−1 dBTP · Spotify</option>
+      <option value="-2">−2 dBTP · Amazon Music</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="mode">Entre les titres</label>
+    <select id="mode">
+      <option value="track" selected>Tous au même niveau</option>
+      <option value="album">Garder les écarts voulus</option>
+    </select>
+  </div>
+  <button class="go" id="go" disabled>Traiter les titres</button>
+</div>
+
+<p class="hint" id="modehint"></p>
+
+<progress id="prog" class="hidden" max="100" value="0"></progress>
+
+<table id="results" class="hidden">
+  <thead>
+    <tr>
+      <th>Titre</th><th>Avant</th><th>Après</th><th>Gain</th>
+      <th>Crête</th><th>Limitation</th><th id="playhead">Sur Spotify</th><th></th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<div class="actions hidden" id="actions">
+  <button class="ghostbtn" id="clear">Vider la liste</button>
+  <button class="ghostbtn" id="dlall">Tout télécharger</button>
+</div>
+
+<div class="notes" id="notes"></div>
+
+</div>
+
+<script>
+/* ==================================================================
+   1. MESURE — Loudness intégré selon ITU-R BS.1770-4 / EBU R128
+   ================================================================== */
+
+function kStages(fs){
+  const f0=1681.974450955533, G=3.999843853973347, Q=0.7071752369554196;
+  const K=Math.tan(Math.PI*f0/fs), Vh=Math.pow(10,G/20);
+  const Vb=Math.pow(Vh,0.4996667741545416), a0=1+K/Q+K*K;
+  const s1={b0:(Vh+Vb*K/Q+K*K)/a0, b1:2*(K*K-Vh)/a0, b2:(Vh-Vb*K/Q+K*K)/a0,
+            a1:2*(K*K-1)/a0, a2:(1-K/Q+K*K)/a0};
+  const f1=38.13547087602444, Q1=0.5003270373238773;
+  const K1=Math.tan(Math.PI*f1/fs), d=1+K1/Q1+K1*K1;
+  const s2={b0:1,b1:-2,b2:1, a1:2*(K1*K1-1)/d, a2:(1-K1/Q1+K1*K1)/d};
+  return [s1,s2];
+}
+
+/* Somme des carrés par tranche de 100 ms, filtrage en flux pour ne jamais
+   allouer une copie de tout le morceau. */
+function segmentPower(chan, fs, gain){
+  const step=Math.round(fs*0.1);
+  const nSeg=Math.floor(chan.length/step);
+  const out=new Float64Array(nSeg);
+  const st=kStages(fs);
+  let x1=0,x2=0,y1=0,y2=0, p1=0,p2=0,q1=0,q2=0;
+  const A=st[0], B=st[1];
+  for(let s=0;s<nSeg;s++){
+    let acc=0; const base=s*step;
+    for(let i=0;i<step;i++){
+      const x0=chan[base+i]*gain;
+      const y0=A.b0*x0+A.b1*x1+A.b2*x2-A.a1*y1-A.a2*y2;
+      x2=x1;x1=x0;y2=y1;y1=y0;
+      const z0=B.b0*y0+B.b1*p1+B.b2*p2-B.a1*q1-B.a2*q2;
+      p2=p1;p1=y0;q2=q1;q1=z0;
+      acc+=z0*z0;
+    }
+    out[s]=acc;
+  }
+  return {segs:out, step};
+}
+
+function integratedLoudness(channels, fs, gain){
+  gain = gain===undefined ? 1 : gain;
+  const per=channels.map(c=>segmentPower(c,fs,gain));
+  const step=per[0].step, nSeg=per[0].segs.length;
+  if(nSeg<4) return -Infinity;
+  const W=[1,1,1,1.41,1.41];
+  const nB=nSeg-3, T=step*4;
+  const z=new Float64Array(nB), l=new Float64Array(nB);
+  for(let b=0;b<nB;b++){
+    let sum=0;
+    for(let c=0;c<per.length;c++){
+      const s=per[c].segs;
+      sum += (W[c]!==undefined?W[c]:1) * ((s[b]+s[b+1]+s[b+2]+s[b+3])/T);
+    }
+    z[b]=sum;
+    l[b]= sum>0 ? -0.691+10*Math.log10(sum) : -Infinity;
+  }
+  let sa=0,ca=0;
+  for(let b=0;b<nB;b++) if(l[b]>-70){sa+=z[b];ca++;}
+  if(!ca) return -Infinity;
+  const rel=-0.691+10*Math.log10(sa/ca)-10;
+  let sr=0,cr=0;
+  for(let b=0;b<nB;b++) if(l[b]>-70&&l[b]>rel){sr+=z[b];cr++;}
+  if(!cr) return -Infinity;
+  return -0.691+10*Math.log10(sr/cr);
+}
+
+/* ==================================================================
+   2. CRÊTE RÉELLE — interpolation polyphase 4x
+   ================================================================== */
+
+const OS=4, TAPS=24, DELAY=TAPS>>1;
+const PHASES=(function(){
+  const N=OS*TAPS, c=(N-1)/2, h=new Float64Array(N);
+  for(let i=0;i<N;i++){
+    const x=(i-c)/OS;
+    const sinc=Math.abs(x)<1e-9?1:Math.sin(Math.PI*x)/(Math.PI*x);
+    const t=i/(N-1);
+    h[i]=sinc*(0.35875-0.48829*Math.cos(2*Math.PI*t)
+              +0.14128*Math.cos(4*Math.PI*t)-0.01168*Math.cos(6*Math.PI*t));
+  }
+  const ph=[];
+  for(let p=0;p<OS;p++){
+    const k=new Float64Array(TAPS); let s=0;
+    for(let j=0;j<TAPS;j++){k[j]=h[j*OS+p]; s+=k[j];}
+    for(let j=0;j<TAPS;j++) k[j]/=s;
+    ph.push(k);
+  }
+  return ph;
+})();
+
+/* Marge interne : l'interpolateur peut sous-estimer d'environ 0,06 dB
+   dans le pire cas théorique, on garde de l'avance dessus. */
+const TP_MARGIN_DB = 0.15;
+
+function maxAbs(channels){
+  let m=0;
+  for(const ch of channels) for(let i=0;i<ch.length;i++){const a=Math.abs(ch[i]); if(a>m)m=a;}
+  return m;
+}
+
+/* Balaye la crête réelle. Le suréchantillonnage n'est calculé que là où
+   le signal peut approcher le plafond — ailleurs la crête brute suffit
+   et le résultat reste exact. */
+async function truePeakScan(channels, threshold, wantEnvelope, onProgress){
+  const n=channels[0].length;
+  const env = wantEnvelope ? new Float32Array(n) : null;
+  let peak=0;
+  const CHUNK=250000;
+  for(let c=0;c<channels.length;c++){
+    const ch=channels[c];
+    for(let start=0;start<n;start+=CHUNK){
+      const end=Math.min(n,start+CHUNK);
+      for(let i=start;i<end;i++){
+        let near=Math.abs(ch[i]);
+        if(i>0){const a=Math.abs(ch[i-1]); if(a>near)near=a;}
+        if(i<n-1){const a=Math.abs(ch[i+1]); if(a>near)near=a;}
+        let v=Math.abs(ch[i]);
+        if(near>=threshold){
+          for(let p=0;p<OS;p++){
+            const cf=PHASES[p]; let acc=0;
+            const lo=i+DELAY-TAPS+1, hi=i+DELAY;
+            if(lo>=0&&hi<n){
+              for(let k=0;k<TAPS;k++) acc+=cf[k]*ch[i-k+DELAY];
+            }else{
+              for(let k=0;k<TAPS;k++){const idx=i-k+DELAY; if(idx>=0&&idx<n) acc+=cf[k]*ch[idx];}
+            }
+            const a=acc<0?-acc:acc;
+            if(a>v)v=a;
+          }
+        }
+        if(v>peak)peak=v;
+        if(env&&v>env[i])env[i]=v;
+      }
+      if(onProgress) onProgress((c*n+end)/(channels.length*n));
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  return {peak, envelope:env};
+}
+
+/* ==================================================================
+   3. LIMITEUR À ANTICIPATION
+   Minimum glissant vers l'avant, puis moyenne glissante vers l'arrière.
+   Cette combinaison garantit mathématiquement gain[n] <= gain requis[n],
+   donc le plafond n'est jamais franchi, tout en restant continu.
+   ================================================================== */
+function limiterGain(envelope, ceilingLin, lookahead, releaseSamples){
+  const n=envelope.length;
+  const req=new Float32Array(n);
+  for(let i=0;i<n;i++){const e=envelope[i]; req[i]= e>ceilingLin ? ceilingLin/e : 1;}
+
+  const minF=new Float32Array(n);
+  const dq=new Int32Array(n+1);
+  let head=0,tail=0;
+  for(let i=n-1;i>=0;i--){
+    while(tail>head && req[dq[tail-1]]>=req[i]) tail--;
+    dq[tail++]=i;
+    while(dq[head]>i+lookahead-1) head++;
+    minF[i]=req[dq[head]];
+  }
+
+  const smooth=new Float32Array(n);
+  let acc=0;
+  for(let i=0;i<n;i++){
+    acc+=minF[i];
+    if(i>=lookahead) acc-=minF[i-lookahead];
+    smooth[i]=acc/Math.min(i+1,lookahead);
+  }
+
+  const a=Math.exp(-1/Math.max(1,releaseSamples));
+  let g=smooth[0];
+  const out=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const s=smooth[i];
+    g = (s<g) ? s : a*g+(1-a)*s;
+    if(g>s) g=s;
+    out[i]=g;
+  }
+  return out;
+}
+
+/* ==================================================================
+   4. CHAÎNE COMPLÈTE POUR UN TITRE
+   ================================================================== */
+
+const dB = v => 20*Math.log10(Math.max(v,1e-12));
+const lin = d => Math.pow(10,d/20);
+
+async function processTrack(track, targetLufs, ceilingDb, onProgress){
+  const {channels, sampleRate} = track;
+  const src = channels;
+  const gainDb = targetLufs - track.lufsIn;
+  const gainLin = lin(gainDb);
+  const ceilLin = lin(ceilingDb - TP_MARGIN_DB);
+
+  // Cas simple : après le gain, la crête reste sous le plafond.
+  // Aucun traitement autre qu'un facteur constant, donc rien n'est altéré.
+  const peakAfter = track.peakIn * gainLin;
+  if(peakAfter <= ceilLin){
+    const out = src.map(ch=>{
+      const o=new Float32Array(ch.length);
+      for(let i=0;i<ch.length;i++) o[i]=ch[i]*gainLin;
+      return o;
+    });
+    return {
+      channels:out, sampleRate,
+      lufsOut: track.lufsIn + gainDb,
+      gainDb, tpOut: dB(peakAfter), reductionDb: 0, limited:false
+    };
+  }
+
+  // Sinon : gain + limitation de crête, puis on rattrape le niveau perdu.
+  const lookahead = Math.max(8, Math.round(sampleRate*0.004));
+  const release   = Math.round(sampleRate*0.12);
+  let g = gainLin;
+  let out=null, tpOut=0, lufsOut=0, reduction=0;
+
+  const envThreshold = Math.min(0.999, ceilLin/g*0.5);
+  const scan = await truePeakScan(src, envThreshold, true, p=>onProgress(p*0.5));
+  const env = scan.envelope;
+
+  for(let pass=0; pass<5; pass++){
+    const scaled=new Float32Array(env.length);
+    for(let i=0;i<env.length;i++) scaled[i]=env[i]*g;
+    const gv = limiterGain(scaled, ceilLin, lookahead, release);
+
+    out = src.map(ch=>{
+      const o=new Float32Array(ch.length);
+      for(let i=0;i<ch.length;i++) o[i]=ch[i]*g*gv[i];
+      return o;
+    });
+
+    lufsOut = integratedLoudness(out, sampleRate);
+    let minG=1;
+    for(let i=0;i<gv.length;i++) if(gv[i]<minG) minG=gv[i];
+    reduction = -dB(minG);
+
+    const err = targetLufs - lufsOut;
+    onProgress(0.5 + 0.4*(pass+1)/5);
+    if(Math.abs(err) < 0.05) break;
+    g *= lin(err);
+  }
+
+  const verify = await truePeakScan(out, Math.min(0.999, ceilLin*0.5), false, p=>onProgress(0.9+p*0.1));
+  tpOut = dB(verify.peak);
+
+  // Filet de sécurité : si malgré tout la crête dépasse, on redescend.
+  if(verify.peak > lin(ceilingDb)){
+    const fix = lin(ceilingDb - TP_MARGIN_DB)/verify.peak;
+    for(const ch of out) for(let i=0;i<ch.length;i++) ch[i]*=fix;
+    lufsOut += dB(fix);
+    tpOut += dB(fix);
+  }
+
+  return {channels:out, sampleRate, lufsOut, gainDb:dB(g), tpOut, reductionDb:reduction, limited:true};
+}
+
+/* ==================================================================
+   5. LECTURE DES FICHIERS
+   On lit la fréquence d'échantillonnage dans l'en-tête avant de décoder,
+   pour que le navigateur ne rééchantillonne pas le fichier au passage.
+   ================================================================== */
+
+function sniffSampleRate(buf, name){
+  const u=new Uint8Array(buf);
+  const tag=String.fromCharCode(u[0],u[1],u[2],u[3]);
+  if(tag==='fLaC'){
+    // Premier bloc de métadonnées = STREAMINFO, débit sur 20 bits
+    return (u[18]<<12)|(u[19]<<4)|(u[20]>>4);
+  }
+  if(tag==='RIFF'){
+    const dv=new DataView(buf);
+    let pos=12;
+    while(pos+8<=buf.byteLength){
+      const id=String.fromCharCode(u[pos],u[pos+1],u[pos+2],u[pos+3]);
+      const size=dv.getUint32(pos+4,true);
+      if(id==='fmt ') return dv.getUint32(pos+12,true);
+      pos+=8+size+(size%2);
+    }
+  }
+  if(tag==='FORM'){
+    const dv=new DataView(buf);
+    let pos=12;
+    while(pos+8<=buf.byteLength){
+      const id=String.fromCharCode(u[pos],u[pos+1],u[pos+2],u[pos+3]);
+      const size=dv.getUint32(pos+4,false);
+      if(id==='COMM'){
+        // Fréquence stockée en flottant étendu 80 bits
+        const exp=dv.getUint16(pos+16,false);
+        const hi=dv.getUint32(pos+18,false), lo=dv.getUint32(pos+22,false);
+        return Math.round((hi*4294967296+lo)*Math.pow(2,(exp&0x7fff)-16383-63));
+      }
+      pos+=8+size+(size%2);
+    }
+  }
+  return null;
+}
+
+async function loadFile(file){
+  const buf = await file.arrayBuffer();
+  let rate = sniffSampleRate(buf, file.name);
+  let guessed=false;
+  if(!rate || rate<3000 || rate>384000){ rate=44100; guessed=true; }
+  const ctx = new OfflineAudioContext(2,1,rate);
+  const audio = await ctx.decodeAudioData(buf.slice(0));
+  const nc = Math.min(audio.numberOfChannels,2);
+  const channels=[];
+  for(let c=0;c<nc;c++) channels.push(audio.getChannelData(c));
+  return {name:file.name, channels, sampleRate:audio.sampleRate, guessed};
+}
+
+/* ==================================================================
+   6. EXPORT WAV 24 BITS avec dither TPDF
+   ================================================================== */
+function encodeWav24(channels, sampleRate){
+  const n=channels[0].length, nc=channels.length;
+  const bytes=n*nc*3;
+  const buf=new ArrayBuffer(44+bytes);
+  const dv=new DataView(buf);
+  const str=(o,s)=>{for(let i=0;i<s.length;i++) dv.setUint8(o+i,s.charCodeAt(i));};
+  str(0,'RIFF'); dv.setUint32(4,36+bytes,true); str(8,'WAVE');
+  str(12,'fmt '); dv.setUint32(16,16,true); dv.setUint16(20,1,true);
+  dv.setUint16(22,nc,true); dv.setUint32(24,sampleRate,true);
+  dv.setUint32(28,sampleRate*nc*3,true); dv.setUint16(32,nc*3,true); dv.setUint16(34,24,true);
+  str(36,'data'); dv.setUint32(40,bytes,true);
+  const S=8388607;
+  let o=44;
+  for(let i=0;i<n;i++){
+    for(let c=0;c<nc;c++){
+      const d=(Math.random()+Math.random()-1)/S;
+      let v=channels[c][i]+d;
+      if(v>1)v=1; else if(v<-1)v=-1;
+      let s=Math.round(v*S);
+      if(s>S)s=S; else if(s<-8388608)s=-8388608;
+      if(s<0)s+=16777216;
+      dv.setUint8(o++,s&255); dv.setUint8(o++,(s>>8)&255); dv.setUint8(o++,(s>>16)&255);
+    }
+  }
+  return new Blob([buf],{type:'audio/wav'});
+}
+
+/* ==================================================================
+   7. INTERFACE
+   ================================================================== */
+
+const LO=-30, HI=0;
+const pct = v => Math.max(0,Math.min(100, (Math.max(LO,Math.min(HI,v))-LO)/(HI-LO)*100));
+
+const mn = s => String(s).replace(/-/g,'\u2212');
+const el = id => document.getElementById(id);
+let tracks=[];
+
+function drawScale(){
+  const s=el('scale'); s.innerHTML='';
+  const target=parseFloat(el('target').value);
+  for(const v of [-30,-25,-20,-10,-5,0]){
+    const d=document.createElement('div');
+    d.className='tick'+(v===0?' last':'')+((v===-25||v===-5)?' thin':''); d.style.left=pct(v)+'%';
+    d.innerHTML='<span>'+mn(String(v))+'</span>';
+    s.appendChild(d);
+  }
+  const t=document.createElement('div');
+  t.className='tick target'; t.style.left=pct(target)+'%';
+  t.innerHTML='<span>cible '+mn(String(target))+'</span>';
+  s.appendChild(t);
+}
+
+function drawLanes(){
+  const box=el('lanes');
+  if(!tracks.length){ box.innerHTML='<div class="dropnote" id="dropnote"><strong>Dépose tes FLAC ou WAV ici</strong><span>Ou clique pour les choisir. Tout se passe sur ton ordinateur : rien n\'est envoyé nulle part.</span></div>'; return; }
+  box.innerHTML='';
+  tracks.forEach(t=>{
+    const lane=document.createElement('div'); lane.className='lane';
+    const nm=document.createElement('div'); nm.className='name'; nm.textContent=t.name;
+    lane.appendChild(nm);
+    if(t.lufsIn!==undefined && isFinite(t.lufsIn)){
+      const from=pct(t.lufsIn);
+      const to = t.result ? pct(t.result.lufsOut) : from;
+      const bar=document.createElement('div'); bar.className='travel';
+      bar.style.left=Math.min(from,to)+'%'; bar.style.width=Math.abs(to-from)+'%';
+      lane.appendChild(bar);
+      if(t.result){
+        const gh=document.createElement('div'); gh.className='pip ghost';
+        gh.style.left=from+'%'; lane.appendChild(gh);
+      }
+      const pip=document.createElement('div');
+      pip.className='pip'+(t.result?' done':'');
+      pip.style.left=from+'%';
+      lane.appendChild(pip);
+      if(t.result) requestAnimationFrame(()=>{pip.style.left=to+'%';});
+    }
+    box.appendChild(lane);
+  });
+}
+
+function fmt(v,unit,digits){
+  if(v===undefined||!isFinite(v)) return '—';
+  return mn((v>0?'+':'')+v.toFixed(digits===undefined?1:digits))+(unit||'');
+}
+
+/* Ce que Spotify jouera réellement : il remonte les titres trop faibles
+   mais laisse 1 dB de réserve, donc un fichier sans marge reste en dessous. */
+function spotifyPlayback(lufs, tp, target, albumMode){
+  // En mode album, Spotify applique un décalage unique à toute la galette :
+  // les fichiers sortent déjà calés, donc ils sont joués tels quels.
+  if(albumMode) return {level:lufs, clamped:false};
+  const want = target - lufs;
+  if(want<=0) return {level:target, clamped:false};
+  const allowed = -1 - tp;
+  const applied = Math.min(want, Math.max(0,allowed));
+  return {level: lufs+applied, clamped: applied < want - 0.05};
+}
+
+function render(){
+  drawLanes();
+  const rows=el('rows'); rows.innerHTML='';
+  const target=parseFloat(el('target').value);
+  tracks.forEach((t,i)=>{
+    const tr=document.createElement('tr');
+    const r=t.result;
+    const album = el('mode').value==='album';
+    const play = r ? spotifyPlayback(r.lufsOut, r.tpOut, target, album) : null;
+    let playCell='—';
+    if(play){
+      playCell = play.clamped
+        ? '<span class="alert">'+mn(play.level.toFixed(1))+' LUFS</span>'
+        : '<span class="good">'+mn(play.level.toFixed(1))+' LUFS</span>';
+    }
+    tr.innerHTML =
+      '<td class="title">'+t.name+'</td>'+
+      '<td class="muted">'+fmt(t.lufsIn,'',1)+'</td>'+
+      '<td class="lamp">'+(r?mn(r.lufsOut.toFixed(1)):'—')+'</td>'+
+      '<td>'+(r?fmt(r.gainDb,' dB'):'—')+'</td>'+
+      '<td>'+(r?mn(r.tpOut.toFixed(2))+' dBTP':fmt(t.tpIn,' dBTP',2))+'</td>'+
+      '<td>'+(r ? (r.reductionDb>0.05
+          ? (r.reductionDb>3?'<span class="alert">':'<span>')+'\u2212'+r.reductionDb.toFixed(1)+' dB</span>'
+          : '<span class="muted">aucune</span>') : '—')+'</td>'+
+      '<td>'+playCell+'</td>'+
+      '<td>'+(r?'<button class="dl ghostbtn" data-i="'+i+'">Télécharger</button>':'')+'</td>';
+    rows.appendChild(tr);
+  });
+  el('playhead').textContent = el('mode').value==='album' ? 'Album joué' : 'Sur Spotify';
+  el('results').classList.toggle('hidden', !tracks.length);
+  el('actions').classList.toggle('hidden', !tracks.some(t=>t.result));
+  rows.querySelectorAll('.dl').forEach(b=>{
+    b.onclick=()=>download(tracks[+b.dataset.i]);
+  });
+  updateNotes();
+}
+
+function download(t){
+  const blob=encodeWav24(t.result.channels, t.result.sampleRate);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=t.name.replace(/\.[^.]+$/,'')+' [aplomb].wav';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+
+function updateNotes(){
+  const n=el('notes');
+  const done=tracks.filter(t=>t.result);
+  if(!done.length){ n.innerHTML=''; return; }
+  const target=parseFloat(el('target').value);
+  let html='';
+  const squashed=done.filter(t=>t.result.reductionDb>3);
+  const album=el('mode').value==='album';
+  const clamped=done.filter(t=>{const p=spotifyPlayback(t.result.lufsOut,t.result.tpOut,target,album); return p.clamped;});
+  const guessed=tracks.filter(t=>t.guessed);
+
+  html+='<p>Les fichiers sortent en WAV 24 bits, à la fréquence d\'origine, avec un dither TPDF. C\'est le format que demandent les distributeurs, et il n\'y a aucune perte par rapport à ton FLAC.</p>';
+  if(squashed.length){
+    html+='<p class="warn">'+squashed.length+' titre'+(squashed.length>1?'s ont':' a')+' demandé plus de 3 dB de limitation pour tenir sous le plafond. Ça s\'entend. Ces titres gagneraient à être remontés dans FL Studio avant l\'export plutôt qu\'ici.</p>';
+  }
+  if(clamped.length){
+    html+='<p class="warn">'+clamped.length+' titre'+(clamped.length>1?'s ne pourront':' ne pourra')+' pas être joué'+(clamped.length>1?'s':'')+' au niveau visé : Spotify laisse 1 dB de réserve quand il remonte un morceau. Baisse le plafond de crête ou remonte le titre à la source.</p>';
+  }
+  if(guessed.length){
+    html+='<p class="warn">Fréquence d\'échantillonnage illisible sur '+guessed.length+' fichier'+(guessed.length>1?'s':'')+' : 44,1 kHz a été supposé. Utilise du FLAC ou du WAV pour éviter ça.</p>';
+  }
+  if(album){
+    html+='<p>Les niveaux affichés valent pour une écoute de l\'album dans l\'ordre. En playlist ou en aléatoire, Spotify recale chaque titre séparément et les écarts que tu viens de préserver disparaissent — c\'est inévitable, quel que soit le fichier envoyé.</p>';
+  }
+  html+='<p>Un master déjà écrêté ou saturé garde sa distorsion : baisser le volume ne la retire pas. Aplomb règle le niveau, pas le mastering.</p>';
+  n.innerHTML=html;
+}
+
+/* ---- chargement ---- */
+async function addFiles(list){
+  const files=[...list].filter(f=>/\.(flac|wav|aif|aiff|mp3|m4a|ogg)$/i.test(f.name));
+  if(!files.length) return;
+  el('prog').classList.remove('hidden');
+  el('go').disabled=true;
+  for(const f of files){
+    try{
+      const t=await loadFile(f);
+      t.lufsIn=integratedLoudness(t.channels,t.sampleRate);
+      const base=maxAbs(t.channels);
+      const scan=await truePeakScan(t.channels, base*0.5, false, p=>{
+        el('prog').value = (tracks.length/(tracks.length+files.length))*100 + p*10;
+      });
+      t.peakIn=scan.peak;
+      t.tpIn=dB(scan.peak);
+      tracks.push(t);
+      render();
+    }catch(e){
+      tracks.push({name:f.name+' — lecture impossible', lufsIn:NaN, error:true});
+      render();
+    }
+  }
+  el('prog').classList.add('hidden'); el('prog').value=0;
+  el('go').disabled = !tracks.some(t=>!t.error);
+}
+
+/* ---- traitement ---- */
+async function runAll(){
+  const target=parseFloat(el('target').value);
+  const ceiling=parseFloat(el('ceiling').value);
+  const mode=el('mode').value;
+  const usable=tracks.filter(t=>!t.error && isFinite(t.lufsIn));
+  if(!usable.length) return;
+
+  // « Garder les écarts » : un seul décalage commun, calculé pour que le
+  // titre le plus fort atterrisse sur la cible. Les rapports entre titres
+  // sont conservés, exactement comme Spotify traite un album écouté d'affilée.
+  let offsets=new Map();
+  if(mode==='album'){
+    const loudest=Math.max(...usable.map(t=>t.lufsIn));
+    usable.forEach(t=>offsets.set(t, t.lufsIn + (target-loudest)));
+  }else{
+    usable.forEach(t=>offsets.set(t,target));
+  }
+
+  el('go').disabled=true;
+  el('prog').classList.remove('hidden');
+  for(let i=0;i<usable.length;i++){
+    const t=usable[i];
+    t.result = await processTrack(t, offsets.get(t), ceiling, p=>{
+      el('prog').value = ((i+p)/usable.length)*100;
+    });
+    render();
+  }
+  el('prog').classList.add('hidden'); el('prog').value=0;
+  el('go').disabled=false;
+}
+
+/* ---- branchements ---- */
+const meter=el('meter'), picker=el('picker');
+meter.addEventListener('click',()=>picker.click());
+meter.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();picker.click();}});
+picker.addEventListener('change',e=>{addFiles(e.target.files); picker.value='';});
+['dragenter','dragover'].forEach(ev=>meter.addEventListener(ev,e=>{
+  e.preventDefault(); meter.classList.add('dragging');
+}));
+['dragleave','drop'].forEach(ev=>meter.addEventListener(ev,e=>{
+  e.preventDefault(); if(ev==='drop'||e.target===meter) meter.classList.remove('dragging');
+}));
+meter.addEventListener('drop',e=>{ e.preventDefault(); addFiles(e.dataTransfer.files); });
+el('go').addEventListener('click',runAll);
+el('target').addEventListener('change',()=>{drawScale();render();});
+el('ceiling').addEventListener('change',render);
+el('mode').addEventListener('change',modeHint);
+el('clear').addEventListener('click',()=>{tracks=[];el('go').disabled=true;render();});
+el('dlall').addEventListener('click',async()=>{
+  for(const t of tracks.filter(t=>t.result)){ download(t); await new Promise(r=>setTimeout(r,400)); }
+});
+
+function modeHint(){
+  el('modehint').textContent = el('mode').value==='album'
+    ? "Tous les titres reçoivent le même décalage : le plus fort atterrit sur la cible et les autres restent en dessous, dans le même rapport qu'aujourd'hui. À choisir si une intro calme doit rester calme."
+    : "Chaque titre atterrit exactement sur la cible, quel qu'ait été son niveau de départ. C'est ce que Spotify fait quand tes morceaux sont écoutés en playlist ou en aléatoire.";
+}
+
+modeHint();
+drawScale();
+render();
+</script>
+</body>
+</html>
