@@ -429,12 +429,22 @@ progress::-moz-progress-bar{background:var(--a)}
   <div class="bar hidden" id="fixbar">
     <div class="field">
       <div class="flabel">Ampleur de la correction
-        <span class="info" tabindex="0">i<span class="tip">Jusqu'où le filtre peut aller. Prudente préserve mieux le caractère du morceau, ferme colle au plus près des références.</span></span>
+        <span class="info" tabindex="0">i<span class="tip">Le plafond de la correction dans la bande audible. Au-delà de 6 dB un filtre appliqué après coup s'entend : le vrai correctif est dans le mix. Le retrait de l'infrasonore sous 35 Hz n'est pas plafonné, rien d'audible n'y vit.</span></span>
       </div>
       <select id="force">
-        <option value="soft">Prudente · au plus 8 dB</option>
-        <option value="normal" selected>Normale · au plus 15 dB</option>
-        <option value="hard">Ferme · corriger à fond</option>
+        <option value="soft">Prudente · au plus 3 dB</option>
+        <option value="normal" selected>Normale · au plus 6 dB</option>
+        <option value="hard">Ferme · au plus 12 dB</option>
+      </select>
+    </div>
+    <div class="field">
+      <div class="flabel">Grave
+        <span class="info" tabindex="0">i<span class="tip">Le grave est la zone où une correction s'entend le plus. Si le résultat te paraît creusé ou saccadé au rythme du kick, mets Doux ou Intact : le reste du spectre continue d'être corrigé normalement.</span></span>
+      </div>
+      <select id="bassmode">
+        <option value="plein" selected>Corrigé normalement</option>
+        <option value="doux">Doux · au plus 3 dB sous 120 Hz</option>
+        <option value="intact">Intact · ne rien toucher sous 120 Hz</option>
       </select>
     </div>
     <button class="act push" id="fix">Corriger et remettre à niveau</button>
@@ -958,6 +968,7 @@ function designMatchFilter(mine, refs, fs, opts){
   const half=mine.power.length;
   const binHz=mine.binHz;
   const {strength, maxCut, maxBoost, taps}=opts;
+  const bassCap = opts.bassCap===undefined ? null : opts.bassCap;
 
   const toDb=(pw)=>{
     const fl=Math.max(...pw)*1e-7;
@@ -999,8 +1010,21 @@ function designMatchFilter(mine, refs, fs, opts){
   for(let b=0;b<half;b++){
     const f=b*binHz;
     let v=(sm[b]-mean)*strength*trust[b];
-    if(v<-maxCut) v=-maxCut;
-    if(v>maxBoost) v=maxBoost;
+    // Le plafond s'ouvre progressivement vers l'infrasonore, où rien
+    // d'audible ne vit, et se referme avant la fondamentale du kick.
+    // Plafond de coupure : s'ouvre doucement vers l'infrasonore, de
+    // façon monotone, pour rester réalisable par le filtre et ne pas
+    // créer de creux résonant.
+    let lim = maxCut + 8/(1+Math.pow(f/28,2));
+    // Protection du grave, au choix de l'utilisateur.
+    if(bassCap!==null && f<200){
+      const w = f<=120 ? 1 : (200-f)/80;
+      const cap = bassCap*w + lim*(1-w);
+      if(cap<lim) lim=cap;
+    }
+    if(v<-lim) v=-lim;
+    const up = (bassCap!==null && f<120) ? Math.min(maxBoost,bassCap) : maxBoost;
+    if(v>up) v=up;
     // Rien sous 20 Hz, et on relâche avant la limite de bande utile :
     // au-delà, la référence ne dit plus rien de fiable.
     if(f<20) v=curve[Math.max(0,b-1)];
@@ -1012,30 +1036,38 @@ function designMatchFilter(mine, refs, fs, opts){
     curve[b]=v;
   }
 
-  // Réponse en amplitude -> réponse impulsionnelle à phase nulle
+  // Amplitude -> réponse impulsionnelle à PHASE MINIMALE.
+  // Un filtre à phase linéaire étale son énergie symétriquement autour
+  // de son pic : sur un kick, une bonne part arrive AVANT le coup et
+  // s'entend comme un creux juste avant chaque frappe. La phase
+  // minimale place toute l'énergie après, comme le fait n'importe quel
+  // égaliseur analogique ou logiciel.
   const M=half*2;
-  const re=new Float64Array(M), im=new Float64Array(M);
-  for(let b=0;b<half;b++){
-    const g=Math.pow(10,curve[b]/20);
-    re[b]=g;
-    if(b>0) re[M-b]=g;
-    if(b===half-1) re[half]=g;
+  const lg=new Float64Array(M), z=new Float64Array(M);
+  for(let b=0;b<M;b++){
+    const k=b<=half ? b : M-b;
+    const g=Math.pow(10,curve[Math.min(k,half-1)]/20);
+    lg[b]=Math.log(Math.max(g,1e-5));
   }
-  ifft(re,im);
-
-  // Recentrage et fenêtrage
+  ifft(lg,z);                       // cepstre réel
+  const cr=new Float64Array(M), ci=new Float64Array(M);
+  cr[0]=lg[0]; cr[half]=lg[half];
+  for(let n=1;n<half;n++) cr[n]=2*lg[n];
+  fft(cr,ci);
+  const hr=new Float64Array(M), hi=new Float64Array(M);
+  for(let b=0;b<M;b++){
+    const e=Math.exp(cr[b]);
+    hr[b]=e*Math.cos(ci[b]); hi[b]=e*Math.sin(ci[b]);
+  }
+  ifft(hr,hi);
   const h=new Float32Array(taps);
-  const c=taps>>1;
-  for(let i=0;i<taps;i++){
-    const k=(i-c+M)%M;
-    const w=0.5-0.5*Math.cos(2*Math.PI*i/(taps-1));
-    h[i]=re[k]*w;
-  }
-  return {taps:h, curve, binHz, bandwidth:bw, trust};
+  for(let i=0;i<taps;i++) h[i]=hr[i]*(0.5+0.5*Math.cos(Math.PI*i/(taps-1)));
+
+  return {taps:h, curve, binHz, bandwidth:bw, trust, delay:0};
 }
 
 /* Convolution par blocs (recouvrement-addition) */
-function convolve(channels, h, onProgress){
+function convolve(channels, h, onProgress, delay){
   const L=h.length;
   let nf=1; while(nf < L*4) nf<<=1;
   const blk=nf-L+1;
@@ -1045,7 +1077,7 @@ function convolve(channels, h, onProgress){
   fft(hr,hi);
 
   const n=channels[0].length;
-  const delay=L>>1;
+  const d = delay===undefined ? (L>>1) : delay;
   const total=channels.length*Math.ceil(n/blk);
   const out=[]; let done=0;
 
@@ -1069,7 +1101,7 @@ function convolve(channels, h, onProgress){
       if(onProgress) onProgress(done/total);
     }
     const dst=new Float32Array(n);
-    for(let i=0;i<n;i++) dst[i]=acc[i+delay];
+    for(let i=0;i<n;i++) dst[i]=acc[i+d];
     out.push(dst);
   }
   return out;
@@ -1572,10 +1604,11 @@ function drawVerdict(){
 }
 
 /* ---------- correction ---------- */
+const BASS={plein:undefined, doux:3, intact:0};
 const FORCES={
-  soft:{strength:.55,maxCut:8,maxBoost:4},
-  normal:{strength:.80,maxCut:15,maxBoost:6},
-  hard:{strength:1,maxCut:22,maxBoost:8}
+  soft:{strength:.5, maxCut:3,  maxBoost:2.5},
+  normal:{strength:.7, maxCut:6,  maxBoost:4.5},
+  hard:{strength:1,  maxCut:12, maxBoost:8}
 };
 
 function curveByBand(curve,binHz){
@@ -1589,7 +1622,7 @@ function curveByBand(curve,binHz){
 async function runFix(){
   const A=slots.A, R=slots.B;
   if(!A||!R.length||!A.channels) return;
-  const opt=Object.assign({taps:4096},FORCES[el('force').value]);
+  const opt=Object.assign({taps:4096,bassCap:BASS[el('bassmode').value]},FORCES[el('force').value]);
   const fsr=A.sampleRate;
   const goal=parseFloat(el('target').value), ceil=parseFloat(el('ceiling').value);
 
@@ -1599,7 +1632,7 @@ async function runFix(){
   await new Promise(r=>setTimeout(r,30));
 
   const f=designMatchFilter(A.spec,R.map(r=>r.spec),fsr,opt);
-  const eq=convolve(A.channels,f.taps,p=>{el('prog2').value=p*50;});
+  const eq=convolve(A.channels,f.taps,p=>{el('prog2').value=p*50;},f.delay);
   await new Promise(r=>setTimeout(r,0));
 
   const t={channels:eq,sampleRate:fsr};
@@ -1649,7 +1682,7 @@ async function runFix(){
     const weak=[...f.trust].filter(v=>v<.6).length/f.trust.length;
     if(weak>.15) L.push('Tes références divergent sur une partie du spectre. La correction y a été atténuée : quand elles ne s\'accordent pas, il n\'y a pas de vérité à viser.');
   }
-  L.push('Écoute avant de publier. La correction porte sur la moyenne du morceau entier : elle remet la balance générale d\'aplomb, pas un passage en particulier. Le filtre est à phase linéaire, donc tes transitoires ne sont pas décalés.');
+  L.push('Écoute avant de publier. La correction porte sur la moyenne du morceau entier : elle remet la balance générale d\'aplomb, pas un passage en particulier. Le filtre est à phase minimale, comme un égaliseur classique : aucune sonnerie avant les transitoires.');
   h+='<div class="read">'+L.map(x=>'<p>'+x+'</p>').join('')+'</div>';
   h+='<div class="acts"><button class="act" id="dlfix">Télécharger le titre corrigé</button></div>';
   h+='</div>';
@@ -1695,6 +1728,7 @@ wireDrop(el('slotB'),el('pickB'),f=>loadSlot('B',f));
 
 el('go').addEventListener('click',runAll);
 el('fix').addEventListener('click',runFix);
+el('bassmode').addEventListener('change',()=>{if(typeof resetPreview==='function')resetPreview();});
 el('clear').addEventListener('click',()=>{tracks=[];el('go').disabled=true;render();});
 el('dlall').addEventListener('click',async()=>{
   for(const t of tracks.filter(t=>t.result)){ download(t); await new Promise(r=>setTimeout(r,400)); }
@@ -1730,7 +1764,7 @@ function targetSpectrum(binHz,n,p){
     db += p.air  * shelfHi(f,7000);
     // Coupure sous 30 Hz : rien d'audible n'y vit, et cette énergie
     // mange le budget de loudness.
-    db += 10*Math.log10(1/(1+Math.pow(30/Math.max(f,1),6)));
+    db += 10*Math.log10(1/(1+Math.pow(30/Math.max(f,1),3)));
     power[b]=Math.pow(10,db/10);
   }
   power[0]=power[1];
@@ -1906,8 +1940,8 @@ async function prepPreview(){
 
   const T=buildTargetRef();
   const f=designMatchFilter(A.spec,[T.spec],fsr,
-    Object.assign({taps:4096},FORCES[el('force').value]));
-  const eq=convolve(cut,f.taps,null);
+    Object.assign({taps:4096,bassCap:BASS[el('bassmode').value]},FORCES[el('force').value]));
+  const eq=convolve(cut,f.taps,null,f.delay);
 
   // même volume des deux côtés, sinon le plus fort gagne toujours
   const gA=lin(-16-integratedLoudness(cut,fsr));
