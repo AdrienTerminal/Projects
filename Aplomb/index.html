@@ -330,13 +330,36 @@ progress::-moz-progress-bar{background:var(--a)}
     </div>
   </div>
   <nav class="tabs" role="tablist">
-    <button role="tab" class="on" data-tab="lvl" aria-selected="true">Égaliser</button>
+    <button role="tab" class="on" data-tab="quick" aria-selected="true">Rapide</button>
+    <button role="tab" data-tab="lvl" aria-selected="false">Égaliser</button>
     <button role="tab" data-tab="mix" aria-selected="false">Mixer</button>
   </nav>
 </div>
 
+<!-- ================= RAPIDE ================= -->
+<section id="quick">
+  <div class="glass drop" id="qdrop" tabindex="0" role="button" aria-label="Déposer des fichiers audio">
+    <div class="invite">
+      <b>Dépose tes maquettes</b>
+      <span>Chaque titre repart prêt pour Spotify. Aucun réglage, aucun remixage : le son n'est pas retouché, seul le niveau est ajusté et la crête sécurisée.</span>
+    </div>
+  </div>
+  <input type="file" id="qpick" multiple accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
+  <progress id="qprog" class="hidden" max="100" value="0"></progress>
+  <div class="glass pad hidden" id="qbox">
+    <table><thead><tr>
+      <th>Titre</th><th>Avant</th><th>Livré à</th><th>Gain</th><th>Crête</th><th>Sur Spotify</th><th></th>
+    </tr></thead><tbody id="qrows"></tbody></table>
+    <div class="acts">
+      <button class="quiet" id="qclear">Vider</button>
+      <button class="act" id="qall">Tout télécharger</button>
+    </div>
+  </div>
+  <div class="read notes" id="qnotes"></div>
+</section>
+
 <!-- ================= ÉGALISER ================= -->
-<section id="lvl">
+<section id="lvl" hidden>
   <div class="glass drop" id="meter" tabindex="0" role="button" aria-label="Déposer des fichiers audio">
     <div class="scale" id="scale"></div>
     <div id="lanes">
@@ -351,12 +374,13 @@ progress::-moz-progress-bar{background:var(--a)}
   <div class="bar">
     <div class="field">
       <div class="flabel">Niveau visé
-        <span class="info" tabindex="0">i<span class="tip">Le volume auquel la plateforme joue tes titres. −14 LUFS pour Spotify, YouTube, Tidal et Amazon. Apple Music joue un peu plus bas.</span></span>
+        <span class="info" tabindex="0">i<span class="tip">Le volume auquel la plateforme joue tes titres. −14 LUFS pour Spotify, YouTube, Tidal et Amazon ; Apple Music joue un peu plus bas. La dernière option laisse ton niveau intact et se contente de vérifier la crête : à utiliser si tu as déjà masterisé plus fort et que tu laisses Spotify redescendre.</span></span>
       </div>
       <select id="target">
         <option value="-14" selected>−14 LUFS · Spotify, YouTube</option>
         <option value="-16">−16 LUFS · Apple Music</option>
         <option value="-11">−11 LUFS · Spotify réglé sur « Fort »</option>
+        <option value="keep">Ne pas changer · vérifier la crête seulement</option>
       </select>
     </div>
     <div class="field">
@@ -1111,6 +1135,10 @@ function convolve(channels, h, onProgress, delay){
    ================================================================== */
 
 const el = id => document.getElementById(id);
+const KEEP = () => el('target').value==='keep';
+// Spotify ramène tout à −14 : c'est le repère d'affichage même quand on
+// choisit de livrer à son niveau d'origine.
+const goalOf = () => KEEP() ? -14 : parseFloat(el('target').value);
 const mn = s => String(s).replace(/-/g,'\u2212');
 const num = (v,d,u) => {
   if(v===undefined||v===null||!isFinite(v)) return '—';
@@ -1126,8 +1154,7 @@ document.querySelectorAll('.tabs button').forEach(b=>{
       x.classList.toggle('on', x===b);
       x.setAttribute('aria-selected', x===b);
     });
-    el('lvl').hidden = b.dataset.tab!=='lvl';
-    el('mix').hidden = b.dataset.tab!=='mix';
+    ['quick','lvl','mix'].forEach(k=>{ el(k).hidden = b.dataset.tab!==k; });
     redrawAll();
   });
 });
@@ -1298,7 +1325,7 @@ let tracks=[];
 
 function drawScale(){
   const s=el('scale'); s.innerHTML='';
-  const goal=parseFloat(el('target').value);
+  const goal=goalOf();
   [-30,-25,-20,-10,-5,0].forEach(v=>{
     const d=document.createElement('div');
     d.className='tick'+(v===0?' last':'')+((v===-25||v===-5)?' slim':'');
@@ -1353,7 +1380,7 @@ function spotifyPlayback(lufs,tp,goal,album){
 
 function render(){
   drawLanes();
-  const goal=parseFloat(el('target').value), album=el('mode').value==='album';
+  const goal=goalOf(), album=el('mode').value==='album';
   el('playhead').textContent = album ? 'Album joué' : 'Sur Spotify';
   const rows=el('rows'); rows.innerHTML='';
   tracks.forEach((t,i)=>{
@@ -1392,7 +1419,7 @@ function download(t){
 function updateNotes(){
   const n=el('notes'), done=tracks.filter(t=>t.result);
   if(!done.length){n.innerHTML='';return;}
-  const goal=parseFloat(el('target').value), album=el('mode').value==='album';
+  const goal=goalOf(), album=el('mode').value==='album';
   const squashed=done.filter(t=>t.result.reductionDb>3);
   const clamped=done.filter(t=>spotifyPlayback(t.result.lufsOut,t.result.tpOut,goal,album).clamped);
   const guessed=tracks.filter(t=>t.guessed);
@@ -1404,6 +1431,9 @@ function updateNotes(){
   if(album) h+='<p>Les niveaux affichés valent pour une écoute de l\'album dans l\'ordre. En playlist, Spotify recale chaque titre séparément et les écarts disparaissent.</p>';
   if(guessed.length) h+='<p class="flag">Fréquence d\'échantillonnage illisible sur '+guessed.length+
     ' fichier'+(guessed.length>1?'s':'')+' : 44,1 kHz a été supposé.</p>';
+  const loud=done.filter(t=>t.result.lufsOut>-14+0.05 && t.result.tpOut>-2);
+  if(loud.length) h+='<p class="flag">'+loud.length+' titre'+(loud.length>1?'s sortent':' sort')+
+    ' au-dessus de −14 LUFS avec une crête plus haute que −2 dBTP. Spotify demande −2 dBTP pour les masters plus forts que sa cible : au-delà, le réencodage en Ogg ajoute de la distorsion. Passe le plafond à −2.</p>';
   h+='<p class="soft">Un master déjà écrêté garde sa distorsion : baisser le volume ne la retire pas.</p>';
   n.innerHTML=h;
 }
@@ -1426,18 +1456,24 @@ async function addFiles(list){
     render();
   }
   el('prog').classList.add('hidden'); el('prog').value=0;
-  el('go').disabled=!tracks.some(t=>!t.error);
+  const ready=tracks.some(t=>!t.error);
+  el('go').disabled=!ready;
 }
 
 async function runAll(){
-  const goal=parseFloat(el('target').value), ceil=parseFloat(el('ceiling').value);
+  const goal=goalOf(), ceil=parseFloat(el('ceiling').value);
   const usable=tracks.filter(t=>!t.error&&isFinite(t.lufsIn));
   if(!usable.length) return;
   const aim=new Map();
   if(el('mode').value==='album'){
     const loudest=Math.max(...usable.map(t=>t.lufsIn));
     usable.forEach(t=>aim.set(t,t.lufsIn+(goal-loudest)));
-  }else usable.forEach(t=>aim.set(t,goal));
+  }else if(KEEP()){
+    // Livraison au niveau d'origine : on ne remonte jamais, on descend
+    // seulement si la crête dépasse le plafond. Aucune limitation.
+    usable.forEach(t=>aim.set(t, t.lufsIn + Math.min(0,(ceil-0.15)-t.tpIn)));
+  }
+  else usable.forEach(t=>aim.set(t,goal));
   el('go').disabled=true; el('go').textContent='Traitement…';
   el('prog').classList.remove('hidden');
   for(let i=0;i<usable.length;i++){
@@ -1686,7 +1722,7 @@ async function runFix(){
   if(!A||!R.length||!A.channels) return;
   const opt=Object.assign({taps:4096,bassCap:BASS[el('bassmode').value]},FORCES[el('force').value]);
   const fsr=A.sampleRate;
-  const goal=parseFloat(el('target').value), ceil=parseFloat(el('ceiling').value);
+  const goal=goalOf(), ceil=parseFloat(el('ceiling').value);
 
   el('fix').disabled=true; el('fix').textContent='Calcul…';
   el('prog2').classList.remove('hidden'); el('prog2').value=0;
@@ -1795,10 +1831,105 @@ wireDrop(el('slotB'),el('pickB'),f=>loadSlot('B',f));
 el('go').addEventListener('click',runAll);
 el('fix').addEventListener('click',runFix);
 el('bassmode').addEventListener('change',()=>{if(typeof resetPreview==='function')resetPreview();});
-el('clear').addEventListener('click',()=>{tracks=[];el('go').disabled=true;render();});
+el('clear').addEventListener('click',()=>{tracks=[];el('go').disabled=true;el('goq').disabled=true;render();});
 el('dlall').addEventListener('click',async()=>{
   for(const t of tracks.filter(t=>t.result)){ download(t); await new Promise(r=>setTimeout(r,400)); }
 });
+
+
+/* ==================================================================
+   RAPIDE — un dépôt, un fichier prêt à publier, aucun réglage
+   ==================================================================
+   Règles, tirées de ce que fait réellement Spotify :
+   · Un master déjà plus fort que −14 LUFS n'a rien à gagner à être
+     touché : la plateforme le redescendra elle-même sans distorsion.
+     On le laisse à son niveau et on ne descend que si la crête dépasse.
+     Plafond −2 dBTP, exigé au-dessus de la cible.
+   · Un master plus faible est remonté vers −14, mais uniquement tant
+     que la réserve de crête le permet, et pas plus loin.
+   Aucun filtre, aucun réequilibrage : le mix sort intact.
+   ================================================================== */
+
+let qtracks=[];
+
+function quickPlan(t){
+  if(t.lufsIn>=-14){
+    return {ceil:-2, aim: t.lufsIn+Math.min(0,(-2-0.15)-t.tpIn), kind:'fort'};
+  }
+  const want=-14-t.lufsIn;
+  const head=(-1-0.15)-t.tpIn;
+  // Aucune limitation, jamais : on monte jusqu'à la cible OU jusqu'au
+  // plafond de crête, selon ce qui arrive en premier. La forme d'onde
+  // n'est donc jamais retouchée, seulement multipliée par un nombre.
+  const gain=Math.min(want, Math.max(0,head));
+  return {ceil:-1, aim:t.lufsIn+gain, kind:'faible', short:Math.max(0,want-gain)};
+}
+
+async function quickAdd(list){
+  const files=[...list].filter(f=>/\.(flac|wav|aif|aiff|mp3|m4a|ogg)$/i.test(f.name));
+  if(!files.length) return;
+  el('qprog').classList.remove('hidden');
+  for(const f of files){
+    let t;
+    try{
+      t=await loadFile(f);
+      t.lufsIn=integratedLoudness(t.channels,t.sampleRate);
+      const sc=await truePeakScan(t.channels,maxAbs(t.channels)*0.5,false,
+        p=>{el('qprog').value=p*60;});
+      t.peakIn=sc.peak; t.tpIn=dB(sc.peak);
+      t.plan=quickPlan(t);
+      t.result=await processTrack(t,t.plan.aim,t.plan.ceil,p=>{el('qprog').value=60+p*40;});
+    }catch(e){
+      t={name:f.name+' — illisible',error:true};
+    }
+    qtracks.push(t);
+    quickRender();
+  }
+  el('qprog').classList.add('hidden'); el('qprog').value=0;
+}
+
+function quickRender(){
+  const rows=el('qrows'); rows.innerHTML='';
+  qtracks.forEach((t,i)=>{
+    const r=t.result, tr=document.createElement('tr');
+    if(t.error){ tr.innerHTML='<td>'+t.name+'</td><td colspan="6" class="warn">non lu</td>'; rows.appendChild(tr); return; }
+    const play=spotifyPlayback(r.lufsOut,r.tpOut,-14,false);
+    tr.innerHTML=
+      '<td>'+t.name+'</td>'+
+      '<td class="dim">'+mn(t.lufsIn.toFixed(1))+'</td>'+
+      '<td class="amber">'+mn(r.lufsOut.toFixed(1))+'</td>'+
+      '<td>'+num(r.gainDb,1)+' dB</td>'+
+      '<td>'+mn(r.tpOut.toFixed(2))+' dBTP</td>'+
+      '<td class="'+(play.clamped?'warn':'ok')+'">'+mn(play.level.toFixed(1))+'</td>'+
+      '<td><button class="quiet" data-q="'+i+'">Télécharger</button></td>';
+    rows.appendChild(tr);
+  });
+  el('qbox').classList.toggle('hidden',!qtracks.length);
+  rows.querySelectorAll('button[data-q]').forEach(b=>
+    b.onclick=()=>download(qtracks[+b.dataset.q]));
+
+  const ok=qtracks.filter(t=>t.result);
+  let h='';
+  if(ok.length){
+    const lim=ok.filter(t=>t.result.reductionDb>0.05);
+    const shortOf=ok.filter(t=>t.plan.short>0.3);
+    h+='<p>WAV 24 bits à la fréquence d\'origine. Le mix n\'a pas été touché : aucun filtre, aucun rééquilibrage, seulement un gain et la sécurité de crête.</p>';
+    if(lim.length) h+='<p class="flag">'+lim.length+' titre'+(lim.length>1?'s ont':' a')+
+      ' dû être écrêté par sécurité, ce qui ne devrait pas arriver. Signale-le moi.</p>';
+
+    if(shortOf.length) h+='<p class="flag">'+shortOf.length+' titre'+(shortOf.length>1?'s restent':' reste')+
+      ' sous la cible : il manque de la densité à la source pour aller plus haut sans abîmer le son. Spotify le jouera un peu en retrait. Pour corriger ça il faut resserrer le master dans FL Studio, pas ici.</p>';
+    h+='<p class="soft">Si un titre te paraît en retrait alors que le niveau est bon, passe-le dans l\'onglet Mixer : c\'est l\'équilibre du spectre, pas le volume.</p>';
+  }
+  el('qnotes').innerHTML=h;
+}
+
+wireDrop(el('qdrop'),el('qpick'),quickAdd);
+el('qclear').addEventListener('click',()=>{qtracks=[];quickRender();});
+el('qall').addEventListener('click',async()=>{
+  for(const t of qtracks.filter(t=>t.result)){ download(t); await new Promise(r=>setTimeout(r,400)); }
+});
+
 el('target').addEventListener('change',()=>{drawScale();render();});
 el('ceiling').addEventListener('change',render);
 el('mode').addEventListener('change',render);
