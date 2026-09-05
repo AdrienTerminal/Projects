@@ -332,6 +332,7 @@ progress::-moz-progress-bar{background:var(--a)}
   <nav class="tabs" role="tablist">
     <button role="tab" class="on" data-tab="quick" aria-selected="true">Rapide</button>
     <button role="tab" data-tab="lvl" aria-selected="false">Égaliser</button>
+    <button role="tab" data-tab="atelier" aria-selected="false">Atelier</button>
     <button role="tab" data-tab="mix" aria-selected="false">Mixer</button>
   </nav>
 </div>
@@ -420,6 +421,68 @@ progress::-moz-progress-bar{background:var(--a)}
     </div>
   </div>
   <div class="read notes" id="notes"></div>
+</section>
+
+<!-- ================= ATELIER ================= -->
+<section id="atelier" hidden>
+  <div class="glass drop" id="adrop" tabindex="0" role="button">
+    <div class="invite">
+      <b>Le traitement complet</b>
+      <span>Réparation de l'écrêtage, recentrage du grave, équilibre du spectre, rabotage des pointes, mise à niveau. Écoute comparative avant de télécharger.</span>
+    </div>
+  </div>
+  <input type="file" id="apick" multiple accept=".flac,.wav,.aiff,.aif,audio/*" class="hidden">
+
+  <div class="bar">
+    <div class="field">
+      <div class="flabel">Profil visé
+        <span class="info" tabindex="0">i<span class="tip">Oriente l'équilibre du spectre. Point de départ conforme aux usages du style, pas une moyenne mesurée sur des disques.</span></span>
+      </div>
+      <select id="aprofil"></select>
+    </div>
+    <div class="field">
+      <div class="flabel">Traitements
+        <span class="info" tabindex="0">i<span class="tip">Coupe-les un par un pour identifier lequel te dérange. Chacun règle un problème distinct et ne touche pas au terrain des autres.</span></span>
+      </div>
+      <div class="togs">
+        <label><input type="checkbox" id="t_declip" checked> Écrêtage</label>
+        <label><input type="checkbox" id="t_mono" checked> Grave</label>
+        <label><input type="checkbox" id="t_tonal" checked> Spectre</label>
+        <label><input type="checkbox" id="t_dyn" checked> Pointes</label>
+      </div>
+    </div>
+    <button class="act push" id="ago" disabled>Traiter</button>
+  </div>
+
+  <progress id="aprog" class="hidden" max="100" value="0"></progress>
+  <p class="astep" id="astep"></p>
+
+  <div class="glass pad hidden" id="abpanel">
+    <div class="ab">
+      <b class="abn" id="abname"></b>
+      <button class="quiet" id="abplay">Écouter</button>
+      <div class="seg" id="abseg2">
+        <button class="on" data-src="0">Avant</button>
+        <button data-src="1">Après</button>
+      </div>
+      <span class="abnote">18 s autour du passage le plus fort, les deux versions au même volume.</span>
+    </div>
+  </div>
+
+  <div class="glass pad hidden" id="abox">
+    <table>
+      <thead><tr>
+        <th>Titre</th><th>Avant</th><th>Après</th><th>Crête</th>
+        <th>Plateaux réparés</th><th>Pompage</th><th></th>
+      </tr></thead>
+      <tbody id="arows"></tbody>
+    </table>
+    <div class="acts">
+      <button class="quiet" id="aclear">Vider</button>
+      <button class="quiet" id="aall">Tout télécharger</button>
+    </div>
+  </div>
+  <div class="read notes" id="anotes"></div>
 </section>
 
 <!-- ================= MIXER ================= -->
@@ -1154,7 +1217,7 @@ document.querySelectorAll('.tabs button').forEach(b=>{
       x.classList.toggle('on', x===b);
       x.setAttribute('aria-selected', x===b);
     });
-    ['quick','lvl','mix'].forEach(k=>{ el(k).hidden = b.dataset.tab!==k; });
+    ['quick','lvl','atelier','mix'].forEach(k=>{ const n=el(k); if(n) n.hidden = b.dataset.tab!==k; });
     redrawAll();
   });
 });
@@ -1853,16 +1916,30 @@ el('dlall').addEventListener('click',async()=>{
 let qtracks=[];
 
 function quickPlan(t){
-  if(t.lufsIn>=-14){
-    return {ceil:-2, aim: t.lufsIn+Math.min(0,(-2-0.15)-t.tpIn), kind:'fort'};
+  // 0.10 dB de marge sous le plafond interne du traitement : sans ça,
+  // un gain qui pose la crête pile sur la limite fait basculer le calcul
+  // sur le chemin du limiteur à cause de l'arrondi flottant, alors
+  // qu'aucune limitation n'est nécessaire.
+  const slack = 0.25;
+  const drop = ceil => Math.min(0, (ceil - slack) - t.tpIn);   // jamais de montée
+
+  if(t.lufsIn >= -14){
+    let aim = t.lufsIn + drop(-2);
+    if(aim >= -14) return {ceil:-2, aim, kind:'fort', short:0, reason:null};
+    // En redescendant sous la cible, c'est le plafond de −1 qui s'applique :
+    // on regagne le décibel qu'un plafond de −2 aurait coûté pour rien.
+    aim = t.lufsIn + drop(-1);
+    return {ceil:-1, aim, kind:'faible', short:Math.max(0,-14-aim),
+            reason: t.tpIn > -1 ? 'crete' : 'densite'};
   }
-  const want=-14-t.lufsIn;
-  const head=(-1-0.15)-t.tpIn;
-  // Aucune limitation, jamais : on monte jusqu'à la cible OU jusqu'au
-  // plafond de crête, selon ce qui arrive en premier. La forme d'onde
-  // n'est donc jamais retouchée, seulement multipliée par un nombre.
-  const gain=Math.min(want, Math.max(0,head));
-  return {ceil:-1, aim:t.lufsIn+gain, kind:'faible', short:Math.max(0,want-gain)};
+
+  const want = -14 - t.lufsIn;
+  const head = (-1 - slack) - t.tpIn;
+  // On monte jusqu'à la cible OU jusqu'au plafond, selon ce qui arrive
+  // en premier. Jamais de limitation, la forme d'onde reste intacte.
+  const gain = Math.min(want, Math.max(0, head));
+  return {ceil:-1, aim:t.lufsIn+gain, kind:'faible', short:Math.max(0,want-gain),
+          reason: t.tpIn > -1 ? 'crete' : 'densite'};
 }
 
 async function quickAdd(list){
@@ -1917,8 +1994,14 @@ function quickRender(){
     if(lim.length) h+='<p class="flag">'+lim.length+' titre'+(lim.length>1?'s ont':' a')+
       ' dû être écrêté par sécurité, ce qui ne devrait pas arriver. Signale-le moi.</p>';
 
-    if(shortOf.length) h+='<p class="flag">'+shortOf.length+' titre'+(shortOf.length>1?'s restent':' reste')+
-      ' sous la cible : il manque de la densité à la source pour aller plus haut sans abîmer le son. Spotify le jouera un peu en retrait. Pour corriger ça il faut resserrer le master dans FL Studio, pas ici.</p>';
+    const byPeak = shortOf.filter(t=>t.plan.reason==='crete');
+    const byDens = shortOf.filter(t=>t.plan.reason!=='crete');
+    if(byPeak.length) h+='<p class="flag">'+byPeak.length+' titre'+(byPeak.length>1?'s ont':' a')+
+      ' une crête trop haute à la source : il a fallu descendre pour tenir sous le plafond, donc '+
+      (byPeak.length>1?'ils resteront':'il restera')+' un peu en retrait. Baisse le master dans FL Studio avant l\'export plutôt que d\'écrêter.</p>';
+    if(byDens.length) h+='<p class="flag">'+byDens.length+' titre'+(byDens.length>1?'s restent':' reste')+
+      ' sous la cible : il manque de la densité à la source pour aller plus haut sans abîmer le son. Spotify '+
+      (byDens.length>1?'les jouera':'le jouera')+' un peu en retrait. Pour corriger, resserre le master dans FL Studio, pas ici.</p>';
     h+='<p class="soft">Si un titre te paraît en retrait alors que le niveau est bon, passe-le dans l\'onglet Mixer : c\'est l\'équilibre du spectre, pas le volume.</p>';
   }
   el('qnotes').innerHTML=h;
@@ -2206,6 +2289,514 @@ let submode='ref';
 function refreshMix(){ submode==='cible' ? drawTarget() : drawVerdict(); }
 document.querySelectorAll('.submode button').forEach(b=>
   b.addEventListener('click',()=>setSubmode(b.dataset.sub)));
+
+/* ==================================================================
+   CHAÎNE DE MASTERING
+   Quatre traitements, dans l'ordre où ils doivent venir. Chacun règle
+   un problème précis et se coupe indépendamment.
+   ================================================================== */
+
+/* ------------------------------------------------------------------
+   1. RÉPARATION D'ÉCRÊTAGE
+   Un master poussé au-delà du zéro numérique a des sommets rabotés à
+   plat. Ces plateaux fabriquent des harmoniques aiguës : c'est ce qui
+   fait rasper les charleys. On retrouve la forme perdue en faisant
+   passer une cubique par les échantillons intacts de part et d'autre.
+   ------------------------------------------------------------------ */
+function declip(channels, onProgress){
+  let repaired = 0, runs = 0;
+  const out = channels.map(ch => Float32Array.from(ch));
+
+  for(let c=0;c<out.length;c++){
+    const x = out[c];
+    const n = x.length;
+    let peak = 0;
+    for(let i=0;i<n;i++){ const a=Math.abs(x[i]); if(a>peak) peak=a; }
+    if(peak < 0.5) continue;
+    const thr = peak * 0.985;
+
+    let i = 0;
+    while(i < n){
+      if(Math.abs(x[i]) < thr){ i++; continue; }
+      const sign = x[i] >= 0 ? 1 : -1;
+      let j = i;
+      while(j < n && Math.abs(x[j]) >= thr && (x[j]>=0?1:-1) === sign) j++;
+      const len = j - i;
+
+      // Un plateau de deux échantillons ou plus est un écrêtage certain.
+      // Un échantillon isolé au sommet est douteux : on ne le répare que
+      // si ses voisins intacts prédisent une valeur qui dépasse le
+      // plafond — preuve qu'il a bien été rogné.
+      let flat = len >= 2 && len <= 48 && i >= 2 && j + 2 <= n;
+      if(flat){
+        let lo2=Infinity, hi2=-Infinity;
+        for(let k=i;k<j;k++){const a=Math.abs(x[k]); if(a<lo2)lo2=a; if(a>hi2)hi2=a;}
+        flat = (hi2-lo2) < peak*0.012;
+      }
+      if(!flat && len === 1 && i >= 2 && j + 2 <= n){
+        const p0=x[i-2],p1=x[i-1],p2=x[j],p3=x[j+1];
+        const t=0, t0=-2,t1=-1,t2=1,t3=2;
+        const v = p0*((t-t1)*(t-t2)*(t-t3))/((t0-t1)*(t0-t2)*(t0-t3))
+                + p1*((t-t0)*(t-t2)*(t-t3))/((t1-t0)*(t1-t2)*(t1-t3))
+                + p2*((t-t0)*(t-t1)*(t-t3))/((t2-t0)*(t2-t1)*(t2-t3))
+                + p3*((t-t0)*(t-t1)*(t-t2))/((t3-t0)*(t3-t1)*(t3-t2));
+        if(Math.abs(v) > peak*1.006 && (v>=0?1:-1) === sign) flat = true;
+      }
+      if(flat){
+        let lo2=Infinity, hi2=-Infinity;
+        for(let k=i;k<j;k++){const a=Math.abs(x[k]); if(a<lo2)lo2=a; if(a>hi2)hi2=a;}
+        flat = (hi2-lo2) < peak*0.012;
+      }
+      if(flat){
+        const p0=x[i-2], p1=x[i-1], p2=x[j], p3=x[j+1];
+        const t0=-2, t1=-1, t2=len, t3=len+1;
+        const lim = peak * 1.55;
+        for(let k=0;k<len;k++){
+          const t=k;
+          // interpolation de Lagrange sur les quatre points intacts
+          const v = p0*((t-t1)*(t-t2)*(t-t3))/((t0-t1)*(t0-t2)*(t0-t3))
+                  + p1*((t-t0)*(t-t2)*(t-t3))/((t1-t0)*(t1-t2)*(t1-t3))
+                  + p2*((t-t0)*(t-t1)*(t-t3))/((t2-t0)*(t2-t1)*(t2-t3))
+                  + p3*((t-t0)*(t-t1)*(t-t2))/((t3-t0)*(t3-t1)*(t3-t2));
+          // la reconstruction doit dépasser le plateau, jamais s'effondrer
+          const keep = sign > 0 ? Math.max(x[i+k], Math.min(v, lim))
+                                : Math.min(x[i+k], Math.max(v, -lim));
+          x[i+k] = keep;
+        }
+        repaired += len; runs++;
+      }
+      i = j;
+    }
+    if(onProgress) onProgress((c+1)/out.length);
+  }
+  return { channels: out, repaired, runs };
+}
+
+/* ------------------------------------------------------------------
+   2. GRAVE EN MONO
+   Deux basses qui se battent en phase, c'est de l'énergie qui remplit
+   le compteur sans se faire entendre, et un bas du spectre flou. On
+   recentre sous une fréquence de coupure, avec un fondu progressif
+   pour ne pas rétrécir le reste de l'image stéréo.
+   ------------------------------------------------------------------ */
+function monoBass(channels, fs, freq){
+  if(channels.length < 2) return channels;
+  const L=channels[0], R=channels[1], n=L.length;
+  const oL=new Float32Array(n), oR=new Float32Array(n);
+  // Un seul pôle : c'est le seul filtre dont le passe-bas et son
+  // complément (signal moins passe-bas) se recomposent exactement, sans
+  // bosse ni creux au point de coupure. Une pente plus raide fabriquerait
+  // une bosse de +3 dB pile là où on veut retirer de l'énergie.
+  // Passe-haut Butterworth d'ordre 2 appliqué au côté seul : magnitude
+  // monotone, pas de bosse au point de coupure, et l'élargissement
+  // revient à plein régime moins d'une octave au-dessus.
+  const w=Math.tan(Math.PI*freq/fs), k=1/(1+Math.SQRT2*w+w*w);
+  const b0=k, b1=-2*k, b2=k;
+  const a1=2*(w*w-1)*k, a2=(1-Math.SQRT2*w+w*w)*k;
+  let x1=0,x2=0,y1=0,y2=0;
+  for(let i=0;i<n;i++){
+    const m=(L[i]+R[i])*0.5, sd=(L[i]-R[i])*0.5;
+    const sHigh=b0*sd+b1*x1+b2*x2-a1*y1-a2*y2;
+    x2=x1;x1=sd;y2=y1;y1=sHigh;
+    oL[i]=m+sHigh; oR[i]=m-sHigh;
+  }
+  return [oL,oR];
+}
+
+/* ------------------------------------------------------------------
+   3. CORRECTION DYNAMIQUE MULTIBANDE
+   Chaque bande est comparée à SON PROPRE niveau des dernières secondes,
+   pas à une courbe lisse. Un égaliseur fixe qui vise une courbe combat
+   la tonalité du morceau : une note de basse tenue ou un synthé marqué
+   dépassent forcément une droite, et se font raboter pour rien.
+   Ici, on ne réduit qu'un dépassement par rapport au contexte immédiat.
+   Ça attrape exactement ce qui gêne — un charley qui rappe, une note
+   qui résonne, un coup de basse qui gonfle — et ça laisse intacts
+   l'équilibre général et la dynamique du morceau.
+   ------------------------------------------------------------------ */
+function dynamicShape(channels, fs, opts, onProgress){
+  const N = 2048, R = N >> 2;   // 46 ms : assez court pour attraper une frappe
+  const n = channels[0].length;
+  const maxCut  = opts.maxCut  !== undefined ? opts.maxCut  : 5;
+  const amount  = opts.amount  !== undefined ? opts.amount  : 0.6;
+  const thresh  = opts.thresh  !== undefined ? opts.thresh  : 6;   // dB au-dessus du contexte
+  const memory  = opts.memory  !== undefined ? opts.memory  : 2.5; // secondes de contexte
+  const attackS = opts.attack  !== undefined ? opts.attack  : 0.012;
+  const releaseS= opts.release !== undefined ? opts.release : 0.18;
+
+  // bandes au tiers d'octave
+  const centers=[], edges=[];
+  for(let f=25; f<fs*0.47; f*=Math.pow(2,1/3)) centers.push(f);
+  for(const f of centers) edges.push([f/Math.pow(2,1/6), f*Math.pow(2,1/6)]);
+  const nb = centers.length;
+  const binHz = fs/N;
+  const bandBins = edges.map(([lo,hi])=>[
+    Math.max(1, Math.round(lo/binHz)),
+    Math.min(N/2-1, Math.round(hi/binHz))]);
+
+  const win = new Float64Array(N);
+  for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+
+  const framesPerSec = fs/R;
+  const aAtt = Math.exp(-1/(attackS*framesPerSec));
+  const aRel = Math.exp(-1/(releaseS*framesPerSec));
+  const aSlow= Math.exp(-1/(memory*framesPerSec));
+
+  const out = channels.map(()=>new Float64Array(n+N));
+  const norm = new Float64Array(n+N);
+  const slow  = new Float64Array(nb).fill(NaN); // niveau de contexte par bande
+  const state = new Float64Array(nb);           // gain courant par bande, en dB
+  const binGain = new Float64Array(N/2+1);
+  let peakCut = 0;
+
+  const nFrames = Math.ceil((n)/R);
+  for(let f=0, pos=0; pos < n; f++, pos+=R){
+    // --- analyse : on décide sur la somme des canaux ---
+    const re=new Float64Array(N), im=new Float64Array(N);
+    for(let i=0;i<N;i++){
+      const idx=pos+i;
+      let v=0;
+      if(idx<n) for(const ch of channels) v+=ch[idx];
+      re[i]=v/channels.length*win[i];
+    }
+    fft(re,im);
+
+    // --- niveau et dépassement par bande ---
+    for(let b=0;b<nb;b++){
+      let p=0;
+      const [lo,hi]=bandBins[b];
+      for(let k=lo;k<=hi;k++) p+=re[k]*re[k]+im[k]*im[k];
+      const lvl = 10*Math.log10(Math.max(p/(hi-lo+1),1e-30));
+      if(isNaN(slow[b])) slow[b]=lvl;
+      else slow[b] = aSlow*slow[b] + (1-aSlow)*lvl;
+      const over = lvl - slow[b] - thresh;
+      let want = over > 0 ? -over*amount : 0;
+      if(want < -maxCut) want = -maxCut;
+      const s = state[b];
+      // descente rapide, remontée lente : pas de pompage
+      state[b] = want < s ? aAtt*s + (1-aAtt)*want : aRel*s + (1-aRel)*want;
+      if(-state[b] > peakCut) peakCut = -state[b];
+    }
+
+    // --- gain par bin, lissé en fréquence ---
+    for(let k=0;k<=N/2;k++){
+      const fr=Math.max(binHz,k*binHz);
+      // interpolation linéaire en log-fréquence entre les centres
+      let g;
+      if(fr<=centers[0]) g=state[0];
+      else if(fr>=centers[nb-1]) g=state[nb-1];
+      else{
+        const t=Math.log2(fr/centers[0])*3;   // 3 bandes par octave
+        const i0=Math.min(nb-2,Math.floor(t)), frac=t-i0;
+        g=state[i0]*(1-frac)+state[i0+1]*frac;
+      }
+      binGain[k]=Math.pow(10,g/20);
+    }
+
+    // --- application sur chaque canal, puis recouvrement-addition ---
+    for(let c=0;c<channels.length;c++){
+      const cr=new Float64Array(N), ci=new Float64Array(N);
+      const src=channels[c];
+      for(let i=0;i<N;i++){ const idx=pos+i; cr[i]=(idx<n?src[idx]:0)*win[i]; }
+      fft(cr,ci);
+      for(let k=0;k<=N/2;k++){
+        const g=binGain[k];
+        cr[k]*=g; ci[k]*=g;
+        if(k>0 && k<N/2){ cr[N-k]*=g; ci[N-k]*=g; }
+      }
+      ifft(cr,ci);
+      const o=out[c];
+      for(let i=0;i<N;i++) o[pos+i]+=cr[i]*win[i];
+    }
+    for(let i=0;i<N;i++) norm[pos+i]+=win[i]*win[i];
+    if(onProgress && (f&15)===0) onProgress(pos/n);
+  }
+
+  const res = channels.map((_,c)=>{
+    const o=new Float32Array(n);
+    for(let i=0;i<n;i++) o[i]=out[c][i]/Math.max(norm[i],1e-9);
+    return o;
+  });
+  return { channels: res, peakCut };
+}
+
+
+/* ------------------------------------------------------------------
+   4. LA CHAÎNE COMPLÈTE
+   L'ordre n'est pas négociable : on répare avant de filtrer, on filtre
+   avant de comprimer, on met à niveau en dernier.
+   ------------------------------------------------------------------ */
+async function masterChain(channels, fs, opt, onProgress){
+  const rep = { steps: [] };
+  let x = channels;
+  const step = (p,label)=>{ if(onProgress) onProgress(p,label); };
+
+  // 1. réparation des sommets rabotés
+  if(opt.declip){
+    step(0.05,'Réparation des crêtes écrêtées');
+    const d = declip(x, null);
+    x = d.channels;
+    rep.repaired = d.repaired; rep.runs = d.runs;
+    if(d.runs) rep.steps.push('écrêtage réparé');
+  }
+  await pause();
+
+  // 2. recentrage du grave
+  if(opt.monoBassHz > 0 && x.length > 1){
+    step(0.15,'Recentrage du grave');
+    x = monoBass(x, fs, opt.monoBassHz);
+    rep.steps.push('grave recentré');
+  }
+  await pause();
+
+  // 3. correction tonale moyenne, douce et à phase minimale
+  if(opt.tonal){
+    step(0.25,'Équilibre du spectre');
+    const lu = integratedLoudness(x, fs);
+    const spec = averageSpectrum(x, fs, lin(-14-lu));
+    if(spec){
+      const tgt = targetSpectrum(spec.binHz, spec.power.length, opt.shape);
+      const k = Math.pow(10,(midLevel(spec.power,spec.binHz)-midLevel(tgt.power,tgt.binHz))/10);
+      for(let b=0;b<tgt.power.length;b++) tgt.power[b]*=k;
+      const f = designMatchFilter(spec,[tgt],fs,opt.tonal);
+      x = convolve(x, f.taps, null, f.delay);
+      let mx=0; for(let b=1;b<f.curve.length;b++){const fr=b*f.binHz;
+        if(fr>20&&fr<18000) mx=Math.max(mx,Math.abs(f.curve[b]));}
+      rep.tonalMax = mx;
+      rep.curve = f.curve; rep.curveBin = f.binHz;
+      if(mx>0.2) rep.steps.push('spectre rééquilibré');
+    }
+  }
+  await pause();
+
+  // 4. rabotage des pointes, bande par bande
+  if(opt.dynamic){
+    step(0.5,'Rabotage des pointes');
+    const d = dynamicShape(x, fs, opt.dynamic, p=>step(0.5+p*0.3,'Rabotage des pointes'));
+    x = d.channels; rep.peakCut = d.peakCut;
+    if(d.peakCut>0.2) rep.steps.push('pointes rabotées');
+  }
+  await pause();
+
+  // 5. mise à niveau et sécurité de crête
+  step(0.85,'Mise à niveau');
+  const t = { channels:x, sampleRate:fs };
+  t.lufsIn = integratedLoudness(x, fs);
+  t.peakIn = (await truePeakScan(x, maxAbs(x)*0.5, false, null)).peak;
+  t.tpIn = dB(t.peakIn);
+  // On ne crushe jamais un morceau pour atteindre la cible : au-delà de
+  // la limitation autorisée, on s'arrête et on laisse Spotify remonter
+  // ce qu'il peut. Un titre un peu en retrait vaut mieux qu'un titre écrasé.
+  const maxLim = opt.maxLimit !== undefined ? opt.maxLimit : 2;
+  const reachable = t.lufsIn + ((opt.ceiling - 0.2) - t.tpIn) + maxLim;
+  const aim = Math.min(opt.target, Math.max(reachable, t.lufsIn));
+  rep.short = Math.max(0, opt.target - aim);
+  const res = await processTrack(t, aim, opt.ceiling, p=>step(0.85+p*0.15,'Mise à niveau'));
+  rep.lufsOut = res.lufsOut; rep.tpOut = res.tpOut; rep.reductionDb = res.reductionDb;
+  return { channels: res.channels, sampleRate: fs, result: res, report: rep };
+}
+const pause = () => new Promise(r=>setTimeout(r,0));
+
+/* ==================================================================
+   ATELIER — la chaîne complète
+   ================================================================== */
+
+let atracks = [];
+const ATOG = ['declip','mono','tonal','dyn'];
+
+function atelierOpts(){
+  const shape = Object.assign({}, PROFILS[el('aprofil').value] || PROFILS.neutre);
+  return {
+    declip: el('t_declip').checked,
+    monoBassHz: el('t_mono').checked ? 110 : 0,
+    shape,
+    tonal: el('t_tonal').checked
+      ? {strength:0.7, maxCut:4, maxBoost:3, bassCap:3, taps:4096} : null,
+    dynamic: el('t_dyn').checked ? {maxCut:5} : null,
+    target: -14, ceiling: -1
+  };
+}
+
+async function atelierAdd(list){
+  const files=[...list].filter(f=>/\.(flac|wav|aif|aiff|mp3|m4a|ogg)$/i.test(f.name));
+  if(!files.length) return;
+  el('aprog').classList.remove('hidden');
+  el('ago').disabled=true;
+  for(const f of files){
+    try{
+      const t=await loadFile(f);
+      t.lufsIn=integratedLoudness(t.channels,t.sampleRate);
+      const sc=await truePeakScan(t.channels,maxAbs(t.channels)*0.5,false,
+        p=>{el('aprog').value=p*100;});
+      t.tpIn=dB(sc.peak); t.peakIn=sc.peak;
+      t.mod=modulation(t.channels,t.sampleRate).depth;
+      atracks.push(t);
+    }catch(e){ atracks.push({name:f.name+' — illisible',error:true}); }
+    atelierRender();
+  }
+  el('aprog').classList.add('hidden'); el('aprog').value=0;
+  el('ago').disabled = !atracks.some(t=>!t.error);
+}
+
+async function atelierRun(){
+  const usable=atracks.filter(t=>!t.error);
+  if(!usable.length) return;
+  el('ago').disabled=true; el('ago').textContent='Traitement…';
+  el('aprog').classList.remove('hidden');
+  for(let i=0;i<usable.length;i++){
+    const t=usable[i];
+    el('astep').textContent=t.name;
+    const out=await masterChain(t.channels,t.sampleRate,atelierOpts(),
+      (p,label)=>{ el('aprog').value=((i+p)/usable.length)*100;
+                   el('astep').textContent=t.name+' — '+label; });
+    t.out=out;
+    t.modOut=modulation(out.channels,t.sampleRate).depth;
+    atelierRender();
+  }
+  el('aprog').classList.add('hidden'); el('aprog').value=0;
+  el('astep').textContent='';
+  el('ago').disabled=false; el('ago').textContent='Traiter';
+}
+
+function atelierRender(){
+  const rows=el('arows'); rows.innerHTML='';
+  atracks.forEach((t,i)=>{
+    const tr=document.createElement('tr');
+    if(t.error){ tr.innerHTML='<td>'+t.name+'</td><td colspan="6" class="warn">non lu</td>';
+      rows.appendChild(tr); return; }
+    const o=t.out;
+    tr.innerHTML=
+      '<td>'+t.name+'</td>'+
+      '<td class="dim">'+mn(t.lufsIn.toFixed(1))+'</td>'+
+      '<td class="amber">'+(o?mn(o.report.lufsOut.toFixed(1)):'—')+'</td>'+
+      '<td>'+(o?mn(o.report.tpOut.toFixed(2)):mn(t.tpIn.toFixed(2)))+' dBTP</td>'+
+      '<td class="dim">'+(o?(o.report.runs||0):'—')+'</td>'+
+      '<td>'+(o?num(t.modOut-t.mod,1)+' dB':'—')+'</td>'+
+      '<td>'+(o?'<button class="quiet" data-ab="'+i+'">Écouter</button> '+
+                '<button class="quiet" data-ad="'+i+'">Télécharger</button>':'')+'</td>';
+    rows.appendChild(tr);
+  });
+  el('abox').classList.toggle('hidden',!atracks.length);
+  rows.querySelectorAll('[data-ad]').forEach(b=>b.onclick=()=>{
+    const t=atracks[+b.dataset.ad];
+    download({name:t.name, result:t.out.result});
+  });
+  rows.querySelectorAll('[data-ab]').forEach(b=>b.onclick=()=>atelierListen(+b.dataset.ab));
+  atelierNotes();
+}
+
+function atelierNotes(){
+  const done=atracks.filter(t=>t.out);
+  if(!done.length){ el('anotes').innerHTML=''; return; }
+  let h='';
+  const clip=done.filter(t=>(t.out.report.runs||0)>50);
+  const noclip=done.filter(t=>(t.out.report.runs||0)<=50 && t.tpIn>-0.5);
+  const worse=done.filter(t=>t.modOut-t.mod>0.8);
+  const lim=done.filter(t=>t.out.report.short>0.3);
+
+  h+='<p>Cinq traitements dans l\'ordre : réparation des sommets écrêtés, recentrage du grave, '+
+     'équilibre du spectre plafonné à 4 dB, rabotage des pointes bande par bande, puis mise à niveau. '+
+     'Sortie en WAV 24 bits à la fréquence d\'origine.</p>';
+  if(clip.length) h+='<p><em>'+clip.length+' titre'+(clip.length>1?'s étaient':' était')+
+    ' réellement écrêté'+(clip.length>1?'s':'')+'</em> : les sommets rabotés ont été reconstruits. '+
+    'C\'est là que le traitement gagne le plus, parce que l\'écrêtage fabrique des harmoniques aiguës — '+
+    'exactement ce qui fait rasper les charleys.</p>';
+  if(noclip.length) h+='<p class="soft">'+noclip.length+' titre'+(noclip.length>1?'s frôlent':' frôle')+
+    ' le zéro numérique sans plateau franc. La réparation n\'y change presque rien : '+
+    'la dureté vient alors du mix ou des sons eux-mêmes, pas de l\'écrêtage.</p>';
+  if(lim.length) h+='<p class="flag">'+lim.length+' titre'+(lim.length>1?'s restent':' reste')+
+    ' sous la cible : les atteindre aurait demandé plus de 2 dB de limitation, et je ne crushe pas '+
+    'un morceau pour gagner un décibel. Leur écart entre niveau moyen et crêtes est trop grand : '+
+    'c\'est le master qu\'il faut resserrer dans FL Studio.</p>';
+  if(worse.length) h+='<p class="flag">Attention : '+worse.length+' titre'+(worse.length>1?'s ont':' a')+
+    ' plus de modulation rythmique qu\'avant. Compare à l\'oreille et coupe le rabotage des pointes si ça pompe.</p>';
+  h+='<p class="soft">Écoute toujours avant de publier. Le bouton Écouter cale les deux versions au même '+
+     'volume : c\'est la seule comparaison honnête.</p>';
+  el('anotes').innerHTML=h;
+}
+
+/* ---------- écoute comparative d'un titre ---------- */
+let ab={ctx:null, buf:[null,null], src:null, which:0, at:0, off:0, on:false, name:''};
+
+async function atelierListen(i){
+  const t=atracks[i]; if(!t||!t.out) return;
+  abStop();
+  el('abpanel').classList.remove('hidden');
+  el('abname').textContent=t.name;
+  el('abplay').disabled=true; el('abplay').textContent='Préparation…';
+  await new Promise(r=>setTimeout(r,20));
+
+  const fsr=t.sampleRate, n=t.channels[0].length;
+  const win=Math.min(n, Math.round(fsr*18));
+  const blk=fsr, nb=Math.max(1,Math.floor(n/blk));
+  let best=0,bestE=-1;
+  for(let k=0;k<nb;k++){ let e=0; const o=k*blk;
+    for(let j=0;j<blk;j+=64){const v=t.channels[0][o+j]||0; e+=v*v;}
+    if(e>bestE){bestE=e;best=k;} }
+  const start=Math.max(0,Math.min(n-win, best*blk-Math.round(win/2)));
+  const cutA=t.channels.map(c=>c.slice(start,start+win));
+  const cutB=t.out.channels.map(c=>c.slice(start,start+win));
+
+  ab.ctx = ab.ctx || new (window.AudioContext||window.webkitAudioContext)();
+  const gA=lin(-16-integratedLoudness(cutA,fsr));
+  const gB=lin(-16-integratedLoudness(cutB,fsr));
+  const mk=(chs,g)=>{ const b=ab.ctx.createBuffer(chs.length,chs[0].length,fsr);
+    chs.forEach((c,k)=>{ const d=b.getChannelData(k);
+      for(let x=0;x<c.length;x++) d[x]=Math.max(-1,Math.min(1,c[x]*g)); });
+    return b; };
+  ab.buf=[mk(cutA,gA),mk(cutB,gB)];
+  ab.off=0; ab.which=0;
+  document.querySelectorAll('#abseg2 button').forEach(b=>
+    b.classList.toggle('on', b.dataset.src==='0'));
+  el('abplay').disabled=false; el('abplay').textContent='Écouter';
+}
+function abStart(){
+  if(!ab.buf[ab.which]) return;
+  ab.src=ab.ctx.createBufferSource();
+  ab.src.buffer=ab.buf[ab.which]; ab.src.loop=true;
+  ab.src.connect(ab.ctx.destination);
+  ab.src.start(0, ab.off % ab.buf[ab.which].duration);
+  ab.at=ab.ctx.currentTime; ab.on=true;
+  el('abplay').textContent='Pause';
+}
+function abStop(){
+  if(ab.src){ try{ab.src.stop()}catch(e){} ab.src.disconnect(); ab.src=null; }
+  if(ab.on && ab.ctx) ab.off += ab.ctx.currentTime-ab.at;
+  ab.on=false;
+  const b=el('abplay'); if(b && b.textContent==='Pause') b.textContent='Écouter';
+}
+function abSwitch(i){
+  if(ab.which===i) return;
+  ab.which=i;
+  document.querySelectorAll('#abseg2 button').forEach(b=>
+    b.classList.toggle('on', +b.dataset.src===i));
+  if(ab.on){ abStop(); abStart(); }
+}
+
+/* ---------- branchements ---------- */
+wireDrop(el('adrop'), el('apick'), atelierAdd);
+el('ago').addEventListener('click', atelierRun);
+el('aclear').addEventListener('click', ()=>{ atracks=[]; abStop();
+  el('abpanel').classList.add('hidden'); atelierRender(); });
+el('aall').addEventListener('click', async()=>{
+  for(const t of atracks.filter(t=>t.out)){
+    download({name:t.name, result:t.out.result});
+    await new Promise(r=>setTimeout(r,400));
+  }
+});
+el('abplay').addEventListener('click', ()=>{
+  if(!ab.ctx) return;
+  if(ab.ctx.state==='suspended') ab.ctx.resume();
+  ab.on ? abStop() : abStart();
+});
+document.querySelectorAll('#abseg2 button').forEach(b=>
+  b.addEventListener('click', ()=>abSwitch(+b.dataset.src)));
+
+for(const p of Object.keys(PROFILS)){
+  const o=document.createElement('option');
+  o.value=p; o.textContent=PROFILS[p].label;
+  el('aprofil').appendChild(o);
+}
 
 </script>
 </body>
