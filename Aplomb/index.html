@@ -2532,11 +2532,18 @@ async function masterChain(channels, fs, opt, onProgress){
   const step = (p,label)=>{ if(onProgress) onProgress(p,label); };
 
   // 1. réparation des sommets rabotés
+  let recovered = 0;
   if(opt.declip){
     step(0.05,'Réparation des crêtes écrêtées');
+    const before = maxAbs(x);
     const d = declip(x, null);
     x = d.channels;
     rep.repaired = d.repaired; rep.runs = d.runs;
+    // Crête rendue au morceau. Elle avait été détruite par un écrêtage :
+    // on a donc le droit de la re-limiter d'autant, cette fois avec un
+    // vrai limiteur à anticipation au lieu d'un rabotage brutal.
+    recovered = Math.max(0, dB(maxAbs(x)) - dB(before));
+    rep.recovered = recovered;
     if(d.runs) rep.steps.push('écrêtage réparé');
   }
   await pause();
@@ -2587,7 +2594,11 @@ async function masterChain(channels, fs, opt, onProgress){
   // On ne crushe jamais un morceau pour atteindre la cible : au-delà de
   // la limitation autorisée, on s'arrête et on laisse Spotify remonter
   // ce qu'il peut. Un titre un peu en retrait vaut mieux qu'un titre écrasé.
-  const maxLim = opt.maxLimit !== undefined ? opt.maxLimit : 2;
+  // 2 dB de limitation de base, plus ce que la réparation a restitué :
+  // on ne fait alors que refaire proprement le travail que l'écrêtage
+  // faisait salement, sans coûter un décibel de niveau final.
+  const maxLim = (opt.maxLimit !== undefined ? opt.maxLimit : 2) + recovered;
+  rep.maxLim = maxLim;
   const reachable = t.lufsIn + ((opt.ceiling - 0.2) - t.tpIn) + maxLim;
   const aim = Math.min(opt.target, Math.max(reachable, t.lufsIn));
   rep.short = Math.max(0, opt.target - aim);
