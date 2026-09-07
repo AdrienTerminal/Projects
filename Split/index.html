@@ -1,104 +1,282 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#191e24">
-  <title>Split</title>
-  <link rel="stylesheet" href="/app.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#191e24">
+<meta name="robots" content="noindex, nofollow">
+<title>Split</title>
+<style>
+  :root {
+    --fond:        #191e24;
+    --panneau:     #212932;
+    --panneau-vif: #29323d;
+    --trait:       #313b47;
+    --texte:       #e8e4db;
+    --discret:     #8a96a4;
+    --lampe:       #e0a040;
+    --froid:       #7fb2ce;
+    --eteint:      #4d5762;
+
+    --sans: "Segoe UI Variable Text", "Segoe UI", Roboto, system-ui, sans-serif;
+    --mono: "Cascadia Mono", "SF Mono", Consolas, ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Le panneau reprend la logique d'une face avant d'appareil :
+     un cadre sobre, et une seule lampe qui porte toute l'information. */
+  .panneau {
+    width: min(380px, 100%);
+    background: var(--panneau);
+    border: 1px solid var(--trait);
+    border-radius: 8px;
+    padding: 34px 30px 28px;
+    transition: border-color .5s ease;
+  }
+  .panneau[data-etat="en-ligne"] { border-color: rgba(224, 160, 64, .45); }
+
+  .marque {
+    margin: 0 0 30px;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: .2em;
+    position: relative;
+    padding-left: 16px;
+  }
+  .marque::before {
+    content: "";
+    position: absolute;
+    left: 0; top: .1em; bottom: .1em;
+    width: 4px;
+    border-radius: 2px;
+    background: var(--lampe);
+  }
+
+  .etat {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--trait);
+  }
+
+  .lampe {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--eteint);
+    flex: none;
+    transition: background .4s ease, box-shadow .4s ease;
+  }
+  .lampe[data-etat="verification"] {
+    background: var(--discret);
+    animation: pulsation 1.4s ease-in-out infinite;
+  }
+  .lampe[data-etat="en-ligne"] {
+    background: var(--lampe);
+    box-shadow: 0 0 12px rgba(224, 160, 64, .8);
+  }
+  .lampe[data-etat="hors-ligne"] { background: var(--eteint); }
+
+  @keyframes pulsation {
+    0%, 100% { opacity: .35; }
+    50%      { opacity: 1; }
+  }
+
+  .etat-texte { margin: 0; font-size: .95rem; }
+  .etat-detail { margin: 2px 0 0; font-size: .82rem; color: var(--discret); }
+
+  .action {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: 0;
+    border-radius: 5px;
+    background: var(--lampe);
+    color: #241a08;
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .2s ease, opacity .2s ease;
+  }
+  .action:hover { background: #eeb055; }
+  .action[aria-disabled="true"] {
+    background: var(--panneau-vif);
+    color: var(--discret);
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .adresse {
+    display: block;
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--discret);
+    text-align: center;
+    word-break: break-all;
+    min-height: 1.2em;
+  }
+
+  .secondaire {
+    margin-top: 26px;
+    padding-top: 20px;
+    border-top: 1px solid var(--trait);
+  }
+  .secondaire p {
+    margin: 0 0 12px;
+    font-size: .82rem;
+    color: var(--discret);
+  }
+  .paire { display: flex; gap: 10px; }
+  .paire a {
+    flex: 1;
+    padding: 9px;
+    border: 1px solid var(--trait);
+    border-radius: 5px;
+    color: var(--discret);
+    text-decoration: none;
+    text-align: center;
+    font-size: .88rem;
+    transition: color .2s ease, border-color .2s ease;
+  }
+  .paire a:hover { color: var(--texte); border-color: var(--discret); }
+
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--froid);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
 </head>
 <body>
 
-<!-- ------------------------------------------------------ connexion -->
-<section id="ecran-connexion" class="connexion">
-  <form id="form-connexion" class="connexion-boite">
-    <p class="marque">Split</p>
-    <p class="connexion-intro">Ce serveur donne accès aux fichiers d'une seule machine. Entre le mot de passe pour l'ouvrir.</p>
-    <label class="champ">
-      <span>Mot de passe</span>
-      <input type="password" id="champ-mdp" autocomplete="current-password" required>
-    </label>
-    <p id="erreur-connexion" class="erreur" hidden></p>
-    <button type="submit" class="bouton-plein">Ouvrir</button>
-  </form>
-</section>
+<main class="panneau" id="panneau">
+  <h1 class="marque">Split</h1>
 
-<!-- ------------------------------------------------------ application -->
-<div id="application" class="application" hidden>
-
-  <aside class="rail">
-    <div class="rail-haut">
-      <p class="marque">Split</p>
-      <p class="rail-etat"><span class="lampe"></span><span id="nom-machine">connecté</span></p>
+  <div class="etat">
+    <span class="lampe" id="lampe" data-etat="verification"></span>
+    <div>
+      <p class="etat-texte" id="etat-texte">Recherche du serveur…</p>
+      <p class="etat-detail" id="etat-detail"></p>
     </div>
+  </div>
 
-    <nav class="rail-nav">
-      <button id="bouton-racine" class="rail-lien">Tous les fichiers</button>
-    </nav>
+  <a class="action" id="action" href="#" aria-disabled="true">Ouvrir Split</a>
+  <code class="adresse" id="adresse"></code>
 
-    <div class="rail-bas">
-      <p class="rail-titre">Contrôle à distance</p>
-      <div class="rail-paire">
-        <a class="rail-tuile" href="https://remotedesktop.google.com/access" target="_blank" rel="noopener">
-          <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true">
-            <path d="M2.5 3.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm1.4 1.6v7.8h12.2V5.1z" opacity=".55"/>
-            <path d="M8 7.2l5 2.6-2.1.7-.7 2.1z"/>
-            <path d="M6.5 16.4h7v1.3h-7z"/>
-          </svg>
-          <span>Chrome</span>
-        </a>
-        <a class="rail-tuile" href="https://web.parsec.app" target="_blank" rel="noopener">
-          <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true">
-            <path d="M2.5 3.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm1.4 1.6v7.8h12.2V5.1z" opacity=".55"/>
-            <path d="M6.2 7.4h2v1.5h-2zm3.4 0h4.2v1.5H9.6zM6.2 10h5.6v1.5H6.2z"/>
-            <path d="M6.5 16.4h7v1.3h-7z"/>
-          </svg>
-          <span>Parsec</span>
-        </a>
-      </div>
-
-      <button id="bouton-reveil" class="rail-lien" hidden>Réveiller le PC</button>
-      <button id="bouton-extinction" class="rail-lien rail-lien--risque" hidden>Éteindre le PC</button>
-      <button id="bouton-deconnexion" class="rail-lien">Fermer la session</button>
+  <div class="secondaire">
+    <p>Prendre le contrôle du PC</p>
+    <div class="paire">
+      <a href="https://remotedesktop.google.com/access" target="_blank" rel="noopener">Chrome</a>
+      <a href="https://web.parsec.app" target="_blank" rel="noopener">Parsec</a>
     </div>
-  </aside>
+  </div>
+</main>
 
-  <main class="contenu">
-    <header class="fil" id="fil"></header>
-    <div id="liste" class="liste"></div>
-    <p id="message" class="message" hidden></p>
-  </main>
+<script>
+const panneau   = document.getElementById("panneau");
+const lampe     = document.getElementById("lampe");
+const texte     = document.getElementById("etat-texte");
+const detail    = document.getElementById("etat-detail");
+const action    = document.getElementById("action");
+const adresse   = document.getElementById("adresse");
 
-  <!-- Barre de transport audio : n'apparaît que pendant la lecture -->
-  <footer id="transport" class="transport" hidden>
-    <button id="transport-play" class="transport-bouton" aria-label="Lecture ou pause"></button>
-    <div class="transport-infos">
-      <p id="transport-titre" class="transport-titre"></p>
-      <div class="transport-piste">
-        <input type="range" id="transport-position" min="0" max="1000" value="0" aria-label="Position dans le morceau">
-      </div>
-    </div>
-    <p class="transport-temps"><span id="transport-ecoule">0:00</span> / <span id="transport-total">0:00</span></p>
-    <button id="transport-precedent" class="transport-bouton transport-bouton--petit" aria-label="Morceau précédent"></button>
-    <button id="transport-suivant" class="transport-bouton transport-bouton--petit" aria-label="Morceau suivant"></button>
-    <button id="transport-fermer" class="transport-bouton transport-bouton--petit" aria-label="Arrêter la lecture"></button>
-  </footer>
-</div>
+function afficher(etat, message, precision) {
+  lampe.dataset.etat   = etat;
+  panneau.dataset.etat = etat;
+  texte.textContent    = message;
+  detail.textContent   = precision || "";
+}
 
-<!-- ------------------------------------------------------ visionneuse -->
-<div id="visionneuse" class="visionneuse" hidden>
-  <header class="visionneuse-barre">
-    <p id="visionneuse-titre" class="visionneuse-titre"></p>
-    <select id="visionneuse-soustitres" class="bouton-fin" hidden aria-label="Sous-titres"></select>
-    <button id="visionneuse-cast" class="bouton-fin" hidden>Envoyer sur la TV</button>
-    <a id="visionneuse-telecharger" class="bouton-fin" download>Télécharger</a>
-    <button id="visionneuse-fermer" class="bouton-fin" aria-label="Fermer">Fermer</button>
-  </header>
-  <div id="visionneuse-scene" class="visionneuse-scene"></div>
-</div>
+// Le PC republie url.json a chaque nouvelle adresse de tunnel.
+// Le parametre aleatoire empeche le navigateur de servir une
+// version mise en cache, ce qui donnerait une adresse perimee.
+async function lireAdresse() {
+  const reponse = await fetch("url.json?t=" + Date.now(), { cache: "no-store" });
+  if (!reponse.ok) throw new Error("url.json introuvable");
+  return reponse.json();
+}
 
-<audio id="lecteur-audio" preload="metadata"></audio>
+// On demande directement au serveur s'il repond, plutot que de se
+// fier a la date du dernier commit : c'est la seule reponse fiable.
+async function serveurRepond(url) {
+  const arret = new AbortController();
+  const minuteur = setTimeout(() => arret.abort(), 6000);
 
-<script src="/app.js"></script>
+  try {
+    await fetch(url.replace(/\/$/, "") + "/api/ping", {
+      signal: arret.signal,
+      cache: "no-store"
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(minuteur);
+  }
+}
+
+function dateLisible(iso) {
+  try {
+    return new Date(iso).toLocaleString("fr-FR", {
+      day: "numeric", month: "long", hour: "2-digit", minute: "2-digit"
+    });
+  } catch {
+    return iso;
+  }
+}
+
+async function verifier() {
+  afficher("verification", "Recherche du serveur…");
+
+  let donnees;
+  try {
+    donnees = await lireAdresse();
+  } catch {
+    afficher("hors-ligne", "Aucune adresse publiée",
+             "Le PC n'a jamais ouvert de tunnel, ou la page n'est pas encore à jour.");
+    action.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  adresse.textContent = donnees.url.replace(/^https:\/\//, "");
+  action.href = donnees.url;
+
+  afficher("verification", "Vérification…");
+
+  if (await serveurRepond(donnees.url)) {
+    afficher("en-ligne", "Le PC est allumé");
+    action.removeAttribute("aria-disabled");
+  } else {
+    afficher("hors-ligne", "Le PC ne répond pas",
+             "Dernière adresse publiée le " + dateLisible(donnees.maj) + ".");
+    action.setAttribute("aria-disabled", "true");
+  }
+}
+
+verifier();
+setInterval(verifier, 30000);
+</script>
 </body>
 </html>
