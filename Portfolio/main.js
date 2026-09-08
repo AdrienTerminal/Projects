@@ -21,10 +21,19 @@
 })();
 
 /* ==================================================================
-   0) SONS — synthétisés à la volée (Web Audio), pas de fichiers externes
+   0) SONS — petit moteur de sound design (Web Audio), sans fichiers
+      externes. Chaque son est construit en couches, comme en prod :
+        · une TRANSITOIRE (clic bruité très court) qui donne l'attaque
+        · un CORPS tonal (sinus filtré) qui donne la matière
+        · un peu de BRUIT filtré qui donne la texture/l'air
+        · une REVERB courte partagée qui donne l'espace
+      C'est ce qui distingue un son "bip d'oscillateur" d'un son
+      d'interface moderne : rien n'est un oscillateur nu.
 ================================================================== */
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let actx = null;
+let audioBus = null;
+let reverbSend = null;
 
 function getAudioContext(){
   if(!actx) actx = new AudioCtx();
@@ -32,30 +41,240 @@ function getAudioContext(){
   return actx;
 }
 
-function blip({ freqStart, freqEnd = freqStart, duration = 0.09, type = "square", gain = 0.045 }){
-  try{
-    const c = getAudioContext();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freqStart, c.currentTime);
-    if(freqEnd !== freqStart){
-      osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), c.currentTime + duration);
-    }
-    g.gain.setValueAtTime(gain, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
-    osc.connect(g).connect(c.destination);
-    osc.start();
-    osc.stop(c.currentTime + duration + 0.02);
-  }catch(err){ /* audio non disponible, on ignore silencieusement */ }
+function makeSoftCurve(amount = 1.3){
+  const n = 1024;
+  const curve = new Float32Array(n);
+  for(let i = 0; i < n; i++){
+    const x = (i * 2) / n - 1;
+    curve[i] = Math.tanh(x * amount) / Math.tanh(amount);
+  }
+  return curve;
 }
 
+/* Réverb douce et sombre : donne l'impression d'un instrument dans une
+   pièce, pas d'un son collé à l'oreille. */
+function makeImpulseResponse(c, duration = 0.9, decay = 2.6){
+  const rate = c.sampleRate;
+  const len = Math.max(1, Math.floor(rate * duration));
+  const impulse = c.createBuffer(2, len, rate);
+  for(let ch = 0; ch < 2; ch++){
+    const data = impulse.getChannelData(ch);
+    let last = 0;
+    for(let i = 0; i < len; i++){
+      const t = i / len;
+      last = (last + (Math.random() * 2 - 1) * 0.3) / 1.3; // bruit lissé = queue douce
+      data[i] = last * Math.pow(1 - t, decay);
+    }
+  }
+  return impulse;
+}
+
+/* Bus master. Le passe-bas est haut (7 kHz) : avec des sinus purs il
+   n'y a aucun harmonique parasite à filtrer, contrairement au bruit. */
+function getBus(){
+  const c = getAudioContext();
+  if(audioBus) return { c, bus:audioBus, send:reverbSend };
+
+  const round = c.createBiquadFilter();
+  round.type = "lowpass";
+  round.frequency.value = 7000;
+  round.Q.value = 0.5;
+
+  const shaper = c.createWaveShaper();
+  shaper.curve = makeSoftCurve(1.3);
+  shaper.oversample = "2x";
+
+  const comp = c.createDynamicsCompressor();
+  comp.threshold.value = -20;
+  comp.knee.value = 30;
+  comp.ratio.value = 3;
+  comp.attack.value = 0.006;
+  comp.release.value = 0.25;
+
+  const master = c.createGain();
+  master.gain.value = 1.0;
+
+  round.connect(shaper).connect(comp).connect(master).connect(c.destination);
+
+  const conv = c.createConvolver();
+  conv.buffer = makeImpulseResponse(c);
+  const wetLP = c.createBiquadFilter();
+  wetLP.type = "lowpass";
+  wetLP.frequency.value = 2600;
+  const wet = c.createGain();
+  wet.gain.value = 0.5;
+  const send = c.createGain();
+  send.gain.value = 1;
+  send.connect(conv).connect(wetLP).connect(wet).connect(comp);
+
+  audioBus = round;
+  reverbSend = send;
+  return { c, bus:round, send };
+}
+
+/* ------------------------------------------------------------------
+   MAILLET — synthèse additive, façon bambou / marimba / kalimba.
+
+   Chaque partiel est un SINUS PUR (aucun bruit : c'est ce qui rend le
+   son clean plutôt que grésillant), à une fréquence inharmonique, et
+   surtout : plus un partiel est aigu, plus vite il s'éteint. C'est
+   exactement ce que fait un objet en bois — et c'est ce qui donne la
+   chaleur, parce que le son devient de plus en plus rond en mourant.
+------------------------------------------------------------------ */
+function mallet(c, bus, send, {
+  t0,
+  root = 330,
+  ratios = [1, 2.76, 5.40],   // modes d'une barre/tube de bois
+  gains  = [1, 0.30, 0.11],
+  decays = [0.45, 0.20, 0.10],// les aigus meurent en premier = chaleur
+  attack = 0.004,
+  gain = 0.11,
+  reverb = 0.30,
+  detune = 0,
+}){
+  ratios.forEach((r, i) => {
+    const osc = c.createOscillator();
+    osc.type = "sine";
+    // micro-désaccord : deux frappes ne sont jamais identiques
+    osc.detune.value = detune + (Math.random() * 8 - 4);
+    osc.frequency.value = root * r;
+
+    const g = c.createGain();
+    const peak = gain * (gains[i] !== undefined ? gains[i] : 0.1);
+    const dec  = decays[i] !== undefined ? decays[i] : 0.12;
+    // attaque courte mais pas instantanée : une attaque à zéro produit
+    // un "clic" numérique, ce qui casse tout le côté doux
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + attack + dec);
+
+    osc.connect(g);
+    g.connect(bus);
+    if(reverb > 0){
+      const rs = c.createGain();
+      rs.gain.value = reverb;
+      g.connect(rs).connect(send);
+    }
+    osc.start(t0);
+    osc.stop(t0 + attack + dec + 0.05);
+  });
+}
+
+const lastPlayed = Object.create(null);
+function throttled(name, minGap, fn){
+  const now = performance.now();
+  if(lastPlayed[name] && now - lastPlayed[name] < minGap) return;
+  lastPlayed[name] = now;
+  fn();
+}
+function vary(base, pct = 0.012){
+  return base * (1 + (Math.random() * 2 - 1) * pct);
+}
+
+/* Gamme pentatonique : toutes les notes sonnent bien ensemble, donc
+   deux clics rapprochés ne créent jamais de dissonance. */
+const NOTES = { do:261.6, re:293.7, mi:329.6, sol:392.0, la:440.0, do2:523.3, re2:587.3, mi2:659.3 };
+
 const sfx = {
-  tab:    () => blip({ freqStart:520, freqEnd:640,  duration:0.07, type:"square",   gain:0.04  }),
-  open:   () => blip({ freqStart:300, freqEnd:560,  duration:0.16, type:"triangle", gain:0.05  }),
-  close:  () => blip({ freqStart:440, freqEnd:220,  duration:0.14, type:"triangle", gain:0.05  }),
-  select: () => blip({ freqStart:820, freqEnd:1040, duration:0.07, type:"sine",     gain:0.04  }),
-  scroll: () => blip({ freqStart:680, freqEnd:720,  duration:0.035,type:"square",   gain:0.022 }),
+  /* Onglet : une note de bambou, ronde et courte. */
+  tab(){
+    throttled("tab", 50, () => {
+      try{
+        const { c, bus, send } = getBus();
+        mallet(c, bus, send, {
+          t0:c.currentTime, root:vary(NOTES.sol),
+          ratios:[1, 2.76, 5.4], gains:[1, 0.26, 0.09], decays:[0.34, 0.15, 0.07],
+          attack:0.004, gain:0.12, reverb:0.28,
+        });
+      }catch(err){ /* audio indisponible */ }
+    });
+  },
+
+  /* Sélection : même bois, une quinte au-dessus, un peu plus chantant. */
+  select(){
+    throttled("select", 50, () => {
+      try{
+        const { c, bus, send } = getBus();
+        mallet(c, bus, send, {
+          t0:c.currentTime, root:vary(NOTES.re2),
+          ratios:[1, 2.72, 5.3], gains:[1, 0.24, 0.08], decays:[0.42, 0.18, 0.08],
+          attack:0.0035, gain:0.115, reverb:0.34,
+        });
+      }catch(err){ /* audio indisponible */ }
+    });
+  },
+
+  /* Ouverture : deux notes qui montent. Le mouvement vient de
+     l'intervalle, pas d'un balayage de fréquence — c'est musical et
+     ça reste propre. */
+  open(){
+    throttled("open", 70, () => {
+      try{
+        const { c, bus, send } = getBus();
+        const t = c.currentTime;
+        mallet(c, bus, send, {
+          t0:t, root:vary(NOTES.do), ratios:[1, 2.8, 5.5], gains:[1, 0.22, 0.08],
+          decays:[0.5, 0.2, 0.09], attack:0.005, gain:0.11, reverb:0.34,
+        });
+        mallet(c, bus, send, {
+          t0:t + 0.075, root:vary(NOTES.sol), ratios:[1, 2.76, 5.4], gains:[1, 0.24, 0.08],
+          decays:[0.55, 0.22, 0.1], attack:0.004, gain:0.10, reverb:0.38,
+        });
+      }catch(err){ /* audio indisponible */ }
+    });
+  },
+
+  /* Fermeture : les deux mêmes notes, en descendant. */
+  close(){
+    throttled("close", 70, () => {
+      try{
+        const { c, bus, send } = getBus();
+        const t = c.currentTime;
+        mallet(c, bus, send, {
+          t0:t, root:vary(NOTES.sol), ratios:[1, 2.76, 5.4], gains:[1, 0.24, 0.08],
+          decays:[0.4, 0.17, 0.08], attack:0.004, gain:0.10, reverb:0.30,
+        });
+        mallet(c, bus, send, {
+          t0:t + 0.075, root:vary(NOTES.do), ratios:[1, 2.8, 5.5], gains:[1, 0.2, 0.07],
+          decays:[0.5, 0.2, 0.09], attack:0.005, gain:0.105, reverb:0.34,
+        });
+      }catch(err){ /* audio indisponible */ }
+    });
+  },
+
+  /* Défilement : petite goutte de bois, très douce. Volontairement
+     discrète : elle se répète beaucoup pendant un glissement. */
+  scroll(){
+    throttled("scroll", 60, () => {
+      try{
+        const { c, bus, send } = getBus();
+        mallet(c, bus, send, {
+          t0:c.currentTime, root:vary(NOTES.mi2),
+          ratios:[1, 2.7], gains:[1, 0.16], decays:[0.13, 0.06],
+          attack:0.003, gain:0.05, reverb:0.22,
+        });
+      }catch(err){ /* audio indisponible */ }
+    });
+  },
+
+  /* Photo décrochée : deux notes très proches, comme deux tubes de
+     bambou qui se touchent — plus doux qu'un simple clic. */
+  photo(){
+    throttled("photo", 70, () => {
+      try{
+        const { c, bus, send } = getBus();
+        const t = c.currentTime;
+        mallet(c, bus, send, {
+          t0:t, root:vary(NOTES.la), ratios:[1, 2.74, 5.35], gains:[1, 0.2, 0.07],
+          decays:[0.3, 0.13, 0.06], attack:0.003, gain:0.09, reverb:0.30,
+        });
+        mallet(c, bus, send, {
+          t0:t + 0.045, root:vary(NOTES.mi), ratios:[1, 2.8, 5.5], gains:[1, 0.22, 0.08],
+          decays:[0.5, 0.2, 0.09], attack:0.005, gain:0.10, reverb:0.36,
+        });
+      }catch(err){ /* audio indisponible */ }
+    });
+  },
 };
 
 
@@ -434,7 +653,7 @@ function openCorkViewer(imgSrc){
   corkViewerImg.src = imgSrc;
   corkViewer.hidden = false;
   requestAnimationFrame(() => corkViewer.classList.add("is-open"));
-  sfx.select();
+  sfx.photo();
 }
 function closeCorkViewer(){
   if(!corkViewer || corkViewer.hidden) return;
