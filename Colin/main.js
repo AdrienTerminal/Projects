@@ -170,15 +170,6 @@ if(pills.length){
   openDrawer(firstId);
 }
 
-// Chaque tuile de projet reprend l'image de la première page de son
-// tiroir comme vignette de fond (--project-thumb), façon sélection de
-// champion — purement décoratif, calculé une fois au chargement.
-pills.forEach(pill => {
-  const drawer = document.querySelector(`.project-drawer[data-drawer="${pill.dataset.project}"]`);
-  const heroImg = drawer?.querySelector(".page__img, .page__photo");
-  if(heroImg && heroImg.src) pill.style.setProperty("--project-thumb", `url("${heroImg.src}")`);
-});
-
 // Chaque tiroir gère sa propre barre : clic pour sauter, glisser pour lerp entre
 // les pages.
 drawers.forEach(drawer => {

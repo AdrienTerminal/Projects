@@ -324,10 +324,7 @@ button{ font:inherit; color:inherit; background:none; border:none; cursor:pointe
   font-family:var(--font-display); font-weight:600; font-size:0.84rem;
   width:150px; height:86px;
   display:flex; align-items:flex-end; padding:10px 12px;
-  background:
-    linear-gradient(0deg, rgba(var(--shadow-rgb),.78), rgba(var(--shadow-rgb),.15) 60%),
-    var(--project-thumb, linear-gradient(145deg, var(--gold), var(--teal)));
-  background-size:cover; background-position:center;
+  background:linear-gradient(145deg, var(--gold), var(--teal));
   color:#fff;
   border-radius:var(--radius-lg);
   border:var(--border) solid color-mix(in srgb, var(--gold) 30%, transparent);
