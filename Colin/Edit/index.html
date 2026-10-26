@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Éditeur — Colin Vialle Portfolio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="edit.css?v=5">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="edit.css?v=1">
 </head>
 <body>
 
@@ -14,7 +14,7 @@
   <div class="toolbar__brand">
     <span class="dot"></span>
     <span>SITE EDITOR</span>
-    <span class="version-badge" title="Vérifie que ce numéro correspond bien à la dernière version que Claude t'a donnée">v5</span>
+    <span class="version-badge" title="Vérifie que ce numéro correspond bien à la dernière version que Claude t'a donnée">v1</span>
   </div>
 
   <div class="toolbar__group">
@@ -23,15 +23,28 @@
       Aide
     </button>
     <button id="btnUndo" class="tbtn tbtn--icon" title="Annuler (Ctrl+Z)">↶ Annuler</button>
-    <button id="btnAddCard" class="tbtn" title="Ajoute une nouvelle carte projet">+ Projet</button>
+    <button id="btnAddProject" class="tbtn" title="Ajoute un nouveau projet à partir d'un template">+ Projet</button>
   </div>
 
   <div class="toolbar__group toolbar__colors">
-    <span class="toolbar__label">Couleurs</span>
-    <label class="swatch" title="Or / accent principal"><input type="color" id="colorGold" value="#c8aa6e"><span style="background:#c8aa6e"></span></label>
-    <label class="swatch" title="Cyan / accent secondaire"><input type="color" id="colorCyan" value="#0ac8b9"><span style="background:#0ac8b9"></span></label>
-    <label class="swatch" title="Texte"><input type="color" id="colorInk" value="#f0e6d2"><span style="background:#f0e6d2"></span></label>
-    <label class="swatch" title="Fond"><input type="color" id="colorBg" value="#0a1428"><span style="background:#0a1428"></span></label>
+    <div class="palette-picker">
+      <button id="btnPalettes" class="tbtn" title="Choisir une palette prête à l'emploi">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-.9.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-5.5-4.9-10-8-10Z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="11" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        Palettes
+      </button>
+      <div class="palette-popover" id="palettePopover" hidden>
+        <div class="popover__head">
+          <span id="paletteContext">Palettes — clair</span>
+          <button class="popover__close" id="paletteClose" title="Fermer">✕</button>
+        </div>
+        <div class="palette-popover__grid" id="paletteGrid"></div>
+      </div>
+    </div>
+    <span class="toolbar__label">Perso</span>
+    <label class="swatch" title="Terracotta / accent"><input type="color" id="colorRed" value="#c2592a"><span style="background:#c2592a"></span></label>
+    <label class="swatch" title="Encre / texte"><input type="color" id="colorInk" value="#22332b"><span style="background:#22332b"></span></label>
+    <label class="swatch" title="Sauge / accent secondaire"><input type="color" id="colorYellow" value="#3f7d68"><span style="background:#3f7d68"></span></label>
+    <label class="swatch" title="Fond papier"><input type="color" id="colorPaper" value="#ede8dd"><span style="background:#ede8dd"></span></label>
   </div>
 
   <div class="toolbar__group toolbar__right">
@@ -47,25 +60,61 @@
     <button class="popover__close" id="helpClose" title="Fermer">✕</button>
   </div>
   <p><strong>Texte</strong> — clique n'importe quel texte pour l'éditer directement.</p>
-  <p><strong>Survole</strong> une image, un lien ou une carte projet pour voir apparaître un petit badge d'action. Un clic dessus fait exactement une chose (changer la photo, modifier le lien, supprimer...).</p>
-  <p><strong>Modules (Accueil / Qui suis-je / chaque page de détail projet)</strong> — ces zones sont entièrement personnalisables : Titre, Texte, Tags, Liste, Stats, Image (JPG/PNG/GIF, l'animation est conservée), Lien, Vidéo (lien YouTube ou fichier MP4). Utilise les boutons "+" en bas de chaque section pour en ajouter, la croix sur un module pour le supprimer. Maintiens la poignée <strong>⠿</strong> (en haut à gauche du module, au survol) pour le déplacer : les autres modules se réorganisent en direct autour ; relâche pour valider, ou fais un clic droit pendant le déplacement pour annuler.</p>
-  <p><strong>Réseaux sociaux</strong> — survole une icône pour changer son lien ou la supprimer ; un "+" à la fin de la liste en ajoute une nouvelle.</p>
-  <p><strong>Projets</strong> — chaque carte s'édite directement (image, titre, corps de métier, texte). Le bouton "Voir plus" ouvre une grande page de détail dédiée à ce projet, avec son propre système de modules (comme Accueil / Qui suis-je) — clique "Voir plus" pour l'éditer, "← Retour aux projets" pour revenir à la grille. Le bouton "+ Projet" en haut ajoute une nouvelle carte (avec sa page de détail) ; la croix sur une carte supprime les deux.</p>
-  <p><strong>Couleurs</strong> — les 4 nuanciers "Couleurs" changent la palette du site en direct (un seul thème, sombre).</p>
-  <p><strong>FR / EN</strong> — bascule la langue directement sur le site (bouton FR/EN dans la barre latérale) : tu édites alors le texte anglais. Chaque langue est stockée séparément, rien n'est écrasé.</p>
-  <p><strong>Ctrl+Z</strong> annule ta dernière modification.</p>
-  <p><strong>Sauvegarde auto</strong> — le brouillon est stocké dans ton navigateur. Si l'indicateur en haut à droite passe en rouge, télécharge le site pour ne rien perdre.</p>
-  <p><strong>Télécharger le site</strong> — génère un <code>index.html</code> propre (sans les outils d'édition) à uploader sur GitHub par-dessus l'ancien.</p>
+  <p><strong>Survole</strong> une image, un lien, un onglet ou un projet pour voir apparaître un petit badge d'action. Un clic dessus fait exactement une chose.</p>
+  <p><strong>Projets</strong> — le badge ✎ sur une pill de projet ouvre un panneau complet à droite : ajoute, glisse-dépose pour réordonner, ou supprime des pages, des tags, des listes, des stats, des liens, des images/vidéos, en totale liberté. Les modifications s'affichent en direct sur le site à gauche ; rien n'est définitif avant "Appliquer" — fermer le panneau sans appliquer annule tout.</p>
+  <p><strong>Ctrl+Z</strong> annule ta dernière modification de texte, image ou lien. L'ajout/suppression de projet n'est pas annulable (une confirmation te protège à la place).</p>
+  <p>Pour éditer la version anglaise d'un texte, bascule d'abord le switch FR/EN du site lui-même, puis édite normalement.</p>
+  <p><strong>Sauvegarde</strong> — un brouillon est gardé automatiquement dans ton navigateur, avec une large marge (plusieurs vidéos ne posent plus problème). Si l'indicateur en haut à droite passe en rouge, télécharge le site pour ne rien perdre.</p>
 </div>
 
 <main class="editor-stage">
-  <iframe id="siteFrame" src="../index.html" title="Aperçu du site en édition"></iframe>
+  <iframe id="siteFrame" src="../index.html" title="Aperçu éditable du site"></iframe>
+
+  <!-- ============================================================
+       PANNEAU D'ÉDITION DE PROJET — section intégrée sous l'aperçu,
+       pas un tiroir qui recouvre tout. Repliée par défaut.
+  ============================================================ -->
+  <section class="project-editor" id="projectEditor" hidden>
+    <header class="project-editor__head">
+      <input type="text" id="peProjectLabel" class="pe-input pe-input--title" placeholder="Project 1">
+      <div class="pe-head-actions">
+        <button class="pe-lang-badge" id="peLangBadge" title="Cliquer pour éditer l'autre langue">FR</button>
+        <button class="pe-help-btn" id="peHelpBtn" title="Comment utiliser ce panneau">?</button>
+        <button class="pe-close-btn" id="peCloseBtn" title="Fermer le panneau">✕</button>
+      </div>
+    </header>
+
+    <div class="pe-help-popover" id="peHelpPopover" hidden>
+      <p><strong>En direct, sans risque</strong> — tout ce que tu fais s'affiche tout de suite sur le site à gauche. Rien n'est définitif tant que tu n'as pas cliqué <strong>Appliquer</strong> : fermer le panneau sans appliquer annule tout.</p>
+      <p><strong>Ajouter un module</strong> — glisse une pastille de la palette sur le canevas, ou clique dessus directement.</p>
+      <p><strong>Réordonner</strong> — maintiens la poignée <strong>⠿</strong> d'un bloc et déplace-le : il échange sa place en direct avec les autres. Relâche pour valider, ou fais un clic droit pendant le déplacement pour annuler et tout remettre à sa place.</p>
+      <p><strong>Image / Vidéo</strong> — JPG, PNG et GIF gardent leur animation. Une vidéo peut être un MP4 uploadé, un lien YouTube, ou un jeu itch.io jouable. La grille de recadrage centre le contenu dans son cadre. La taille (S/M/L pour une image ou une vidéo YouTube/MP4, 1/2, 2/3, pleine largeur pour une vidéo/jeu) ne s'applique que si c'est le 1er média de la page — le texte occupe alors l'espace restant à côté (sauf en pleine largeur, où il passe au-dessus).</p>
+      <p><strong>"N'autorise pas la connexion" sur un jeu itch.io</strong> — itch.io bloque l'intégration par défaut. Sur la page de ton jeu → Éditer le jeu → Intégration → active "Intégrer sur d'autres sites", puis colle le code fourni ici (pas le lien classique de la page du jeu, qui lui reste bloqué).</p>
+      <p><strong>Couleurs</strong> — la pastille arc-en-ciel sur un bloc ouvre une couleur personnalisée ; "défaut" l'annule.</p>
+      <p><strong>FR / EN</strong> — le badge montre la langue en cours d'édition ; clique pour basculer et éditer l'autre.</p>
+      <p><strong>Alignement du texte</strong> — les trois petits boutons ronds en haut du canevas placent le contenu en haut, au centre ou en bas de sa colonne (utile si tu n'as que peu de texte à côté d'une grande image ou vidéo).</p>
+      <p><strong>Tableau photo</strong> — le bouton appareil photo dans la passion "Photo" ouvre un tableau en liège avec tes photos punaisées. Clique "+ Ajouter une photo" en haut à droite du tableau pour en ajouter une (elle se place automatiquement), le badge sur une photo pour la changer ou la supprimer.</p>
+      <p><strong>Sauvegarde auto</strong> — le brouillon est stocké dans ton navigateur (large marge, y compris pour plusieurs vidéos). Si l'indicateur en haut à droite passe en rouge, télécharge le site pour ne rien perdre.</p>
+    </div>
+
+    <div class="pe-page-tabs" id="pePageTabs"></div>
+
+    <div class="pe-palette" id="pePalette"></div>
+
+    <div class="project-editor__body">
+      <div class="pe-canvas" id="peCanvas"></div>
+    </div>
+
+    <footer class="project-editor__foot">
+      <button class="tbtn tbtn--primary" id="peApply">✓ Appliquer</button>
+    </footer>
+  </section>
 </main>
 
 <input type="file" id="fileInput" accept="image/*" hidden>
-<input type="file" id="videoFileInput" accept="video/mp4,video/webm,video/*" hidden>
+<input type="file" id="videoInput" accept="video/mp4,video/webm,video/*" hidden>
 <div class="toast" id="toast"></div>
 
-<script src="edit.js?v=5"></script>
+<script src="edit.js?v=1"></script>
 </body>
 </html>

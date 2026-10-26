@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,181 +14,339 @@
 <meta property="og:image" content="og-image.jpg">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="site-loader" id="siteLoader">
   <div class="site-loader__mark">
-    <span class="site-loader__bar"></span>
-    <span class="site-loader__bar"></span>
-    <span class="site-loader__bar"></span>
+    <span class="site-loader__dot"></span>
+    <span class="site-loader__dot"></span>
+    <span class="site-loader__dot"></span>
   </div>
 </div>
 
 <div class="stage">
-  <div class="hud" id="hud">
+  <div class="card" id="card">
 
-    <!-- ================= SIDEBAR — persistante sur les 3 sections ================= -->
-    <aside class="hud__sidebar">
-      <div class="hud__topline">
-        <div class="hud__lang" id="langSwitch">
-          <button class="hud__lang-btn is-active" data-lang="fr">FR</button>
-          <button class="hud__lang-btn" data-lang="en">EN</button>
+    <div class="card__topbar">
+      <span class="card__brand">
+        <!-- ⚙️ À REMPLACER : ton nom -->
+        Colin Vialle
+        <span class="brand__underline"></span>
+      </span>
+
+      <div class="topbar__right">
+        <div class="theme-switch" id="themeSwitch" role="group" aria-label="Thème">
+          <button class="theme-switch__btn is-active" data-theme="light" title="Mode clair">☀</button>
+          <button class="theme-switch__btn" data-theme="dark" title="Mode sombre">☾</button>
         </div>
+
+        <div class="lang-switch" id="langSwitch" role="group" aria-label="Langue">
+          <button class="lang-switch__btn is-active" data-lang="fr">FR</button>
+          <button class="lang-switch__btn" data-lang="en">EN</button>
+        </div>
+
+        <nav class="card__tabs">
+          <button class="tab is-active" data-tab="projects">Projects</button>
+          <button class="tab" data-tab="about">About me</button>
+        </nav>
       </div>
+    </div>
 
-      <div class="hud__avatar-frame">
-        <img class="hud__avatar" id="avatarImg" src="https://placehold.co/200x240/0D1B1E/2DD4C8?text=Photo" alt="Portrait de Colin Vialle">
-      </div>
+    <div class="card__body">
 
-      <h1 class="hud__name" data-fr="Colin VIALLE" data-en="Colin VIALLE">Colin VIALLE</h1>
-      <p class="hud__role" data-fr="Machin Designer" data-en="Whatchamacallit Designer">Machin Designer</p>
-      <button class="hud__status" id="statusBtn">
-        <span class="hud__status-dot"></span>
-        <span data-fr="Open to work" data-en="Open to work">Open to work</span>
-      </button>
+      <!-- Colonne gauche : identité, fixe -->
+      <aside class="card__profile">
+        <div class="avatar-frame">
+          <!-- ⚙️ À REMPLACER : ta photo -->
+          <img class="avatar" src="https://placehold.co/200x240/22332B/EDE8DD?text=Photo" alt="Portrait de Colin Vialle">
+        </div>
+        <!-- ⚙️ À REMPLACER : ton intitulé de poste -->
+        <p class="role" data-fr="Machin Designer" data-en="Whatchamacallit Designer">Machin Designer</p>
 
-      <div class="hud__block">
-        <span class="hud__block-label" data-fr="CV" data-en="Resume">CV</span>
-        <a class="hud__cv" id="cvLink" href="#" target="_blank" rel="noopener">
-          <img class="hud__cv-img" id="cvImg" src="https://placehold.co/220x300/0F2124/1B3A3D?text=CV" alt="Aperçu du CV">
+        <div class="profile__spacer"></div>
+
+        <!-- ⚙️ À REMPLACER : lien vers ton vrai CV en PDF -->
+        <a href="#" class="resume-btn" download>
+          <span class="resume-btn__shine"></span>
+          Resume
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
         </a>
-      </div>
 
-      <div class="hud__block hud__block--socials">
-        <span class="hud__block-label" data-fr="Socials" data-en="Socials">Socials</span>
-        <ul class="hud__socials" id="socialsList">
-          <li><a href="#" target="_blank" rel="noopener" data-social="itch" aria-label="itch.io">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8.5 5.5 4h13L21 8.5c.4 2-.9 3.8-2.8 3.8-1.4 0-2.5-.9-2.9-2.1-.4 1.2-1.5 2.1-2.8 2.1s-2.4-.9-2.8-2.1c-.4 1.2-1.5 2.1-2.8 2.1-1.9 0-3.2-1.8-2.8-3.8Z"/><path d="M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12"/><path d="M9.5 15.5c0-1 .8-1.8 1.8-1.8h1.4c1 0 1.8.8 1.8 1.8V17H9.5v-1.5Z"/></svg>
-          </a></li>
-          <li><a href="#" target="_blank" rel="noopener" data-social="linkedin" aria-label="LinkedIn">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6.94 5a2 2 0 1 1-4-.02 2 2 0 0 1 4 .02M7 8.48H3.02V21H7ZM13.32 8.48h-3.8V21h3.79v-6.57c0-3.66 4.75-4 4.75 0V21H21.9v-7.93c0-6.17-7-5.94-8.58-2.91Z"/></svg>
-          </a></li>
-          <li><a href="#" target="_blank" rel="noopener" data-social="mail" aria-label="Email">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>
-          </a></li>
-          <li><a href="#" target="_blank" rel="noopener" data-social="instagram" aria-label="Instagram">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg>
-          </a></li>
-        </ul>
-      </div>
-    </aside>
+        <div class="socials-group">
+          <span class="socials-group__label" data-fr="Réseaux" data-en="Contact">Réseaux</span>
+          <ul class="socials">
+            <!-- ⚙️ À REMPLACER : tes vrais liens -->
+            <li><a href="#" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.03-1.85-3.03-1.86 0-2.15 1.45-2.15 2.94v5.66H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45Z"/></svg>
+            </a></li>
+            <li><a href="mailto:colin@example.com" title="Email" aria-label="Email">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 6l8 6 8-6"/></svg>
+            </a></li>
+            <li><a href="#" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg>
+            </a></li>
+          </ul>
+        </div>
+        <div class="socials-group">
+          <span class="socials-group__label" data-fr="Créations" data-en="Creations">Créations</span>
+          <ul class="socials">
+            <li><a href="#" target="_blank" rel="noopener" title="itch.io" aria-label="itch.io">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4.42 2.65C3.03 3.46 0 6.9 0 7.65c0 1.28 1.32 2.4 2.34 2.4.91 0 1.7-.62 2.5-1.36.6-.55.86-.7 1.16-.7.3 0 .56.15 1.16.7.8.74 1.59 1.36 2.5 1.36.9 0 1.68-.62 2.5-1.36.58-.55.85-.7 1.15-.7.3 0 .56.15 1.16.7.8.74 1.6 1.36 2.5 1.36.9 0 1.68-.62 2.5-1.36.58-.55.85-.7 1.15-.7.3 0 .57.15 1.16.7.8.74 1.6 1.36 2.5 1.36C22.68 10.05 24 8.93 24 7.65c0-.75-3.03-4.2-4.42-5C19.16 2.32 16.9 2 12 2S4.84 2.32 4.42 2.65Zm.36 9.02c-.44.24-.98.53-1.66.72-.24 1.6-.5 5.36-.13 7.65.22 1.36 2.6 2.2 4.83 2.2h8.36c2.22 0 4.6-.84 4.83-2.2.37-2.3.11-6.05-.13-7.65-.68-.19-1.22-.48-1.66-.72-.7.44-1.55.76-2.5.76-1.08 0-2.03-.4-2.8-.98-.7.55-1.6.98-2.7.98s-2-.43-2.7-.98c-.77.58-1.72.98-2.8.98-.95 0-1.8-.32-2.5-.76Z"/></svg>
+            </a></li>
+            <li><button type="button" class="corkboard-trigger" title="Voir mes photos" aria-label="Voir mes photos">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path fill-rule="evenodd" d="M3,8L3,19L21,19L21,8L16,8L14.5,5L9.5,5L8,8Z M7.7,13.5A4.3,4.3 0 0,1 16.3,13.5A4.3,4.3 0 0,1 7.7,13.5Z M10.2,13.5A1.8,1.8 0 0,1 13.8,13.5A1.8,1.8 0 0,1 10.2,13.5Z"/></svg>
+            </button></li>
+            <!-- ⚙️ À REMPLACER : lien vers un de tes profils créatifs -->
+            <li><a href="#" target="_blank" rel="noopener" title="SoundCloud" aria-label="SoundCloud">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 15v3M6 13v5M9 11v7M12 9v9M15 7.5A4 4 0 0 1 19 11.5v.5a3 3 0 0 1 0 6H9V9.5a2.5 2.5 0 0 1 4.9-.75"/></svg>
+            </a></li>
+          </ul>
+        </div>
+      </aside>
 
-    <!-- ================= ZONE PRINCIPALE — carrousel à 3 sections ================= -->
-    <main class="hud__main">
-      <nav class="hud__nav" id="hudNav">
-        <button class="hud__nav-side hud__nav-side--prev" id="navPrevLabel" data-target=""></button>
-        <button class="hud__nav-arrow" id="navPrevBtn" aria-label="Section précédente">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-        </button>
-        <h2 class="hud__nav-title" id="navTitle"></h2>
-        <button class="hud__nav-arrow" id="navNextBtn" aria-label="Section suivante">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
-        </button>
-        <button class="hud__nav-side hud__nav-side--next" id="navNextLabel" data-target=""></button>
-      </nav>
+      <!-- Colonne droite : hauteur fixe, ne bouge jamais quand on ouvre/ferme un projet -->
+      <div class="card__panel">
 
-      <div class="hud__content">
+        <!-- ================= PROJECTS ================= -->
+        <div class="panel-view is-active" data-panel="projects">
 
-        <!-- ================= ACCUEIL ================= -->
-        <section class="hud__panel is-active" data-panel="home">
-          <div class="hud__modules" id="homeModules">
-            <!-- ⚙️ À REMPLACER : le module "+" en bas du panneau permet d'ajouter Titre, Texte, Tags, Liste, Stats, Image ou Lien librement -->
-            <h3 class="mod__title mod-block" data-fr="Lorem Ipsum Dolor" data-en="Lorem Ipsum Dolor">Lorem Ipsum Dolor</h3>
-            <p class="mod__text mod-block" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.</p>
+          <div class="pill-row">
+            <!-- ⚙️ À REMPLACER : ajoute / retire un bouton par projet (garde le même data-project que son tiroir plus bas) -->
+            <button class="pill is-active" data-project="p1">Projet 1</button>
+            <button class="pill" data-project="p2">Projet 2</button>
+            <button class="pill" data-project="p3">Projet 3</button>
           </div>
-        </section>
 
-        <!-- ================= QUI SUIS-JE ? ================= -->
-        <section class="hud__panel" data-panel="about">
-          <div class="hud__modules" id="aboutModules">
-            <!-- ⚙️ À REMPLACER : le module "+" en bas du panneau permet d'ajouter Titre, Texte, Tags, Liste, Stats, Image ou Lien librement -->
-            <p class="mod__text mod-block" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae. Duis aute irure dolor in reprehenderit." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae. Duis aute irure dolor in reprehenderit.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae. Duis aute irure dolor in reprehenderit.</p>
-            <div class="mod__tags mod-block">
-              <span data-fr="Compétence" data-en="Skill">Compétence</span>
-              <span data-fr="Compétence" data-en="Skill">Compétence</span>
-              <span data-fr="Compétence" data-en="Skill">Compétence</span>
+          <!-- Scène à taille fixe : le tiroir se déplie/replie en fondu doux -->
+          <div class="stage-frame has-open" id="projectsStage">
+
+            <!-- ============================================
+                 PROJECT 1
+            ============================================ -->
+            <div class="project-drawer is-open" data-drawer="p1">
+              <div class="drawer__scroll">
+
+                <div class="page"><div class="page__text" style="justify-content: flex-start;"><h3 data-fr="Titre projet 1" data-en="Project 1 title">Titre projet 1</h3><p class="page__tags"><span data-fr="Outil" data-en="Tool">Outil</span><span data-fr="Corps de métier" data-en="Field">Corps de métier</span></p><p class="page__pitch" data-fr="Résumé du projet en une phrase." data-en="One-sentence project summary.">Résumé du projet en une phrase.</p><p data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum.</p><a class="itch-link" href="#" data-fr="Voir le projet ↗" data-en="View project ↗">Voir le projet ↗</a></div><img class="page__img" src="https://placehold.co/460x300/22332B/EDE8DD?text=Projet+1" alt=""></div>
+
+                <div class="page"><div class="page__text" style="justify-content: flex-start;"><h3 data-fr="Mon rôle" data-en="My Role">Mon rôle</h3><p class="page__meta" data-fr="Équipe · durée" data-en="Team · duration">Équipe · durée</p><ul class="page__list"><li data-fr="Lorem ipsum dolor sit amet" data-en="Lorem ipsum dolor sit amet">Lorem ipsum dolor sit amet</li><li data-fr="Consectetur adipiscing elit" data-en="Consectetur adipiscing elit">Consectetur adipiscing elit</li><li data-fr="Sed do eiusmod tempor incididunt" data-en="Sed do eiusmod tempor incididunt">Sed do eiusmod tempor incididunt</li></ul><a class="itch-link" href="#" data-fr="Voir le projet ↗" data-en="View project ↗">Voir le projet ↗</a></div><img class="page__img" src="https://placehold.co/460x300/C2592A/EDE8DD?text=Role" alt=""></div>
+
+              </div>
+              <div class="scrollbar-track"><div class="scrollbar-thumb" style="width: 50%; left: 0%;"></div></div>
+            </div>
+
+            <!-- ============================================
+                 PROJECT 2
+            ============================================ -->
+            <div class="project-drawer" data-drawer="p2">
+              <div class="drawer__scroll">
+
+                <div class="page"><div class="page__text" style="justify-content: flex-start;"><h3 data-fr="Titre projet 2" data-en="Project 2 title">Titre projet 2</h3><p class="page__tags"><span data-fr="Outil" data-en="Tool">Outil</span><span data-fr="Corps de métier" data-en="Field">Corps de métier</span></p><p class="page__pitch" data-fr="Résumé du projet en une phrase." data-en="One-sentence project summary.">Résumé du projet en une phrase.</p><p data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia.</p><a class="itch-link" href="#" data-fr="Voir le projet ↗" data-en="View project ↗">Voir le projet ↗</a></div><img class="page__img" src="https://placehold.co/460x300/3F7D68/EDE8DD?text=Projet+2" alt=""></div>
+
+                <div class="page"><div class="page__text" style="justify-content: flex-start;"><h3 data-fr="Résultats" data-en="Results">Résultats</h3><div class="page__stats"><div class="stat"><strong>00</strong><span data-fr="statistique" data-en="metric">statistique</span></div><div class="stat"><strong>00</strong><span data-fr="statistique" data-en="metric">statistique</span></div></div><p data-fr="Sed a ante urna. Aenean pretium diam sed porta dapibus — bilan du projet." data-en="Sed a ante urna. Aenean pretium diam sed porta dapibus — project recap.">Sed a ante urna. Aenean pretium diam sed porta dapibus — bilan du projet.</p><a class="itch-link" href="#" data-fr="Voir le projet ↗" data-en="View project ↗">Voir le projet ↗</a></div><img class="page__img" src="https://placehold.co/460x300/22332B/EDE8DD?text=Resultats" alt=""></div>
+
+              </div>
+              <div class="scrollbar-track"><div class="scrollbar-thumb" style="width: 50%; left: 0%;"></div></div>
+            </div>
+
+            <!-- ============================================
+                 PROJECT 3
+            ============================================ -->
+            <div class="project-drawer" data-drawer="p3">
+              <div class="drawer__scroll">
+
+                <div class="page"><div class="page__text" style="justify-content: flex-start;"><h3 data-fr="Titre projet 3" data-en="Project 3 title">Titre projet 3</h3><p class="page__tags"><span data-fr="Outil" data-en="Tool">Outil</span><span data-fr="Corps de métier" data-en="Field">Corps de métier</span></p><p class="page__pitch" data-fr="Résumé du projet en une phrase." data-en="One-sentence project summary.">Résumé du projet en une phrase.</p><p data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam, quis nostrud exercitation." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam, quis nostrud exercitation.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam, quis nostrud exercitation.</p><a class="itch-link" href="#" data-fr="Voir le projet ↗" data-en="View project ↗">Voir le projet ↗</a></div><img class="page__img" src="https://placehold.co/460x300/C2592A/EDE8DD?text=Projet+3" alt=""></div>
+
+                <div class="page"><div class="page__text" style="justify-content: flex-start;"><h3 data-fr="Fonctionnalités clés" data-en="Key Features">Fonctionnalités clés</h3><ul class="page__list"><li data-fr="Duis aute irure dolor in reprehenderit" data-en="Duis aute irure dolor in reprehenderit">Duis aute irure dolor in reprehenderit</li><li data-fr="Excepteur sint occaecat cupidatat" data-en="Excepteur sint occaecat cupidatat">Excepteur sint occaecat cupidatat</li></ul><a class="itch-link" href="#" data-fr="Voir le projet ↗" data-en="View project ↗">Voir le projet ↗</a></div><img class="page__img" src="https://placehold.co/460x300/3F7D68/EDE8DD?text=Features" alt=""></div>
+
+              </div>
+              <div class="scrollbar-track"><div class="scrollbar-thumb" style="width: 50%; left: 0%;"></div></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ================= ABOUT ME — panneaux diagonaux façon launcher ================= -->
+        <div class="panel-view" data-panel="about">
+          <div class="about-intro">
+            <!-- ⚙️ À REMPLACER : 1-2 phrases sur qui tu es professionnellement -->
+            <p class="about-bio" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum, sed ut perspiciatis unde omnis iste natus error sit voluptatem." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum, sed ut perspiciatis unde omnis iste natus error sit voluptatem.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum, sed ut perspiciatis unde omnis iste natus error sit voluptatem.</p>
+
+            <!-- ⚙️ À REMPLACER : ajoute / retire les outils que tu maîtrises -->
+            <div class="stack-row">
+              <span class="stack-tag">Outil 1</span>
+              <span class="stack-tag">Outil 2</span>
+              <span class="stack-tag">Outil 3</span>
+              <span class="stack-tag">Outil 4</span>
             </div>
           </div>
-        </section>
 
-        <!-- ================= PROJETS ================= -->
-        <section class="hud__panel" data-panel="projects">
-          <div class="hud__projects" id="projectsGrid">
-            <!-- ⚙️ À REMPLACER : une carte = une image, un titre, un corps de métier, un texte. Le bouton "Voir plus" ouvre la page de détail correspondante juste en dessous. -->
-            <article class="hud__card" data-project-card="p1">
-              <img class="hud__card-img" src="https://placehold.co/400x220/0F2124/C8AA6E?text=Projet+1" alt="">
-              <h3 class="hud__card-title" data-fr="Titre projet 1" data-en="Project 1 title">Titre projet 1</h3>
-              <span class="hud__card-role" data-fr="Corps de métier" data-en="Field/role">Corps de métier</span>
-              <p class="hud__card-text" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit.">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-              <button type="button" class="hud__card-more" data-project-target="p1" data-fr="Voir plus →" data-en="See more →">Voir plus →</button>
-            </article>
+          <div class="about-split" id="aboutSplit">
+            <!-- ================= MOI — frise chronologique compacte, alternée haut/bas ================= -->
+            <div class="about-tab" data-about-tab="me" role="button" tabindex="0">
+              <span class="about-tab__label" data-fr="Moi" data-en="Me">Moi</span>
+              <div class="about-tab__preview about-tab__preview--me">
+                <svg viewBox="0 0 40 32" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.6"/><circle cx="26" cy="5" r="2.6"/><circle cx="19" cy="27" r="2.6"/><path d="M7 7.6v3.4M26 7.6v3.4M19 24.4v-3.4"/><path d="M2 11h11l6 5-6 5H2l5-5-5-5z"/><path d="M21 11h11l6 5-6 5H21l5-5-5-5z"/></svg>
+              </div>
+              <div class="about-tab__content">
+                <button type="button" class="timeline__nav timeline__nav--prev" aria-label="Étapes précédentes">‹</button>
+                <div class="timeline" id="timeline">
+                  <div class="timeline__scroll">
+                    <div class="timeline__track"></div>
 
-            <article class="hud__card" data-project-card="p2">
-              <img class="hud__card-img" src="https://placehold.co/400x220/0F2124/0AC8B9?text=Projet+2" alt="">
-              <h3 class="hud__card-title" data-fr="Titre projet 2" data-en="Project 2 title">Titre projet 2</h3>
-              <span class="hud__card-role" data-fr="Corps de métier" data-en="Field/role">Corps de métier</span>
-              <p class="hud__card-text" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit.">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-              <button type="button" class="hud__card-more" data-project-target="p2" data-fr="Voir plus →" data-en="See more →">Voir plus →</button>
-            </article>
+                    <!-- ⚙️ À REMPLACER : une étape = une date, une photo, un titre. Garde-les courts : le but est de lire tout le parcours d'un coup d'œil. Jusqu'à 10 étapes environ. -->
+                    <div class="timeline__node timeline__node--up">
+                      <span class="timeline__dot"></span>
+                      <div class="timeline__card">
+                        <div class="timeline__photo-frame">
+                          <img class="timeline__photo" src="https://placehold.co/160x160/22332B/EDE8DD?text=%F0%9F%93%85" alt="">
+                        </div>
+                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
+                        <h4 class="timeline__title" data-fr="Étape 1" data-en="Milestone 1">Étape 1</h4>
+                      </div>
+                    </div>
 
-            <article class="hud__card" data-project-card="p3">
-              <img class="hud__card-img" src="https://placehold.co/400x220/0F2124/C8AA6E?text=Projet+3" alt="">
-              <h3 class="hud__card-title" data-fr="Titre projet 3" data-en="Project 3 title">Titre projet 3</h3>
-              <span class="hud__card-role" data-fr="Corps de métier" data-en="Field/role">Corps de métier</span>
-              <p class="hud__card-text" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit.">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-              <button type="button" class="hud__card-more" data-project-target="p3" data-fr="Voir plus →" data-en="See more →">Voir plus →</button>
-            </article>
-          </div>
+                    <div class="timeline__node timeline__node--down">
+                      <span class="timeline__dot"></span>
+                      <div class="timeline__card">
+                        <div class="timeline__photo-frame">
+                          <img class="timeline__photo" src="https://placehold.co/160x160/C2592A/EDE8DD?text=%F0%9F%93%85" alt="">
+                        </div>
+                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
+                        <h4 class="timeline__title" data-fr="Étape 2" data-en="Milestone 2">Étape 2</h4>
+                      </div>
+                    </div>
 
-          <!-- ================= PAGES DE DÉTAIL PROJET — même système de modules qu'Accueil / Qui suis-je ================= -->
-          <div class="hud__project-detail" id="projectDetail" hidden>
-            <button type="button" class="hud__detail-back" id="detailBackBtn" data-fr="← Retour aux projets" data-en="← Back to projects">← Retour aux projets</button>
+                    <div class="timeline__node timeline__node--up">
+                      <span class="timeline__dot"></span>
+                      <div class="timeline__card">
+                        <div class="timeline__photo-frame">
+                          <img class="timeline__photo" src="https://placehold.co/160x160/3F7D68/EDE8DD?text=%F0%9F%93%85" alt="">
+                        </div>
+                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
+                        <h4 class="timeline__title" data-fr="Étape 3" data-en="Milestone 3">Étape 3</h4>
+                      </div>
+                    </div>
 
-            <div class="hud__detail-body" data-project-id="p1" hidden>
-              <div class="hud__modules" id="projectModules-p1">
-                <!-- ⚙️ À REMPLACER : le module "+" en bas permet d'ajouter Titre, Texte, Tags, Liste, Stats, Image ou Lien librement -->
-                <h3 class="mod__title mod-block" data-fr="Titre projet 1" data-en="Project 1 title">Titre projet 1</h3>
-                <img class="mod__image mod-block" src="https://placehold.co/700x360/0F2124/C8AA6E?text=Projet+1" alt="">
-                <p class="mod__text mod-block" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.</p>
-                <div class="mod__tags mod-block">
-                  <span data-fr="Outil" data-en="Tool">Outil</span>
-                  <span data-fr="Outil" data-en="Tool">Outil</span>
+                    <div class="timeline__node timeline__node--down">
+                      <span class="timeline__dot"></span>
+                      <div class="timeline__card">
+                        <div class="timeline__photo-frame">
+                          <img class="timeline__photo" src="https://placehold.co/160x160/22332B/EDE8DD?text=%F0%9F%93%85" alt="">
+                        </div>
+                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
+                        <h4 class="timeline__title" data-fr="Étape 4" data-en="Milestone 4">Étape 4</h4>
+                      </div>
+                    </div>
+
+                    <!-- dernière étape, spéciale : ne pas supprimer, c'est l'appel à recrutement -->
+                    <div class="timeline__node timeline__node--cta timeline__node--up">
+                      <span class="timeline__dot timeline__dot--cta"></span>
+                      <div class="timeline__card timeline__card--cta">
+                        <h4 class="timeline__title" data-fr="Et la suite ?" data-en="What's next?">Et la suite ?</h4>
+                        <p class="timeline__text" data-fr="Aujourd'hui, je recherche une opportunité pour continuer à grandir. Si mon profil vous parle, discutons-en !" data-en="I'm now looking for an opportunity to keep growing. If my profile speaks to you, let's talk!">Aujourd'hui, je recherche une opportunité pour continuer à grandir. Si mon profil vous parle, discutons-en !</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+                <button type="button" class="timeline__nav timeline__nav--next" aria-label="Étapes suivantes">›</button>
               </div>
             </div>
 
-            <div class="hud__detail-body" data-project-id="p2" hidden>
-              <div class="hud__modules" id="projectModules-p2">
-                <h3 class="mod__title mod-block" data-fr="Titre projet 2" data-en="Project 2 title">Titre projet 2</h3>
-                <img class="mod__image mod-block" src="https://placehold.co/700x360/0F2124/0AC8B9?text=Projet+2" alt="">
-                <p class="mod__text mod-block" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.</p>
-                <div class="mod__tags mod-block">
-                  <span data-fr="Outil" data-en="Tool">Outil</span>
-                  <span data-fr="Outil" data-en="Tool">Outil</span>
-                </div>
+            <!-- ================= MES PASSIONS — panneaux diagonaux façon launcher ================= -->
+            <div class="about-tab is-active" data-about-tab="passions" role="button" tabindex="0">
+              <span class="about-tab__label" data-fr="Mes passions" data-en="My passions">Mes passions</span>
+              <div class="about-tab__preview about-tab__preview--passions">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.6C3.5 6.5 5.8 4.5 8.4 4.5c1.7 0 3.1.9 3.9 2.2.8-1.3 2.2-2.2 3.9-2.2 2.6 0 4.9 2 4.9 5.1 0 5.8-8.5 10.9-8.5 10.9Z"/></svg>
               </div>
-            </div>
+              <div class="about-tab__content">
+                <div class="occupations" id="occupations">
+                  <!-- ⚙️ À REMPLACER : une occupation = une image de fond + un titre + un texte -->
+                  <div class="occupation is-active" role="button" tabindex="0" style="background-image:url('https://placehold.co/300x420/C2592A/EDE8DD?text=Passion+1')">
+                    <span class="occupation__label" data-fr="Passion 1" data-en="Passion 1">Passion 1</span>
+                    <div class="occupation__info">
+                      <h3 data-fr="Passion 1" data-en="Passion 1">Passion 1</h3>
+                      <p data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia aliquam vel nibh. Fusce erat eros, rutrum a neque aliquet." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia aliquam vel nibh. Fusce erat eros, rutrum a neque aliquet.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc eu velit a velit bibendum lacinia aliquam vel nibh. Fusce erat eros, rutrum a neque aliquet.</p>
+                    </div>
+                  </div>
 
-            <div class="hud__detail-body" data-project-id="p3" hidden>
-              <div class="hud__modules" id="projectModules-p3">
-                <h3 class="mod__title mod-block" data-fr="Titre projet 3" data-en="Project 3 title">Titre projet 3</h3>
-                <img class="mod__image mod-block" src="https://placehold.co/700x360/0F2124/C8AA6E?text=Projet+3" alt="">
-                <p class="mod__text mod-block" data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet lectus non nisi pellentesque vestibulum. Sed ut perspiciatis unde omnis iste natus error.</p>
-                <div class="mod__tags mod-block">
-                  <span data-fr="Outil" data-en="Tool">Outil</span>
-                  <span data-fr="Outil" data-en="Tool">Outil</span>
+                  <div class="occupation" role="button" tabindex="0" style="background-image:url('https://placehold.co/300x420/22332B/EDE8DD?text=Passion+2')">
+                    <span class="occupation__label" data-fr="Passion 2" data-en="Passion 2">Passion 2</span>
+                    <div class="occupation__info">
+                      <h3 data-fr="Passion 2" data-en="Passion 2">Passion 2</h3>
+                      <p data-fr="Vestibulum nec elit sed dui vitae lacus. Pellentesque risus justo, porta sit amet dapibus, vitae congue nibh." data-en="Vestibulum nec elit sed dui vitae lacus. Pellentesque risus justo, porta sit amet dapibus, vitae congue nibh.">Vestibulum nec elit sed dui vitae lacus. Pellentesque risus justo, porta sit amet dapibus, vitae congue nibh.</p>
+                    </div>
+                  </div>
+
+                  <div class="occupation" role="button" tabindex="0" style="background-image:url('https://placehold.co/300x420/3F7D68/EDE8DD?text=Passion+3')">
+                    <span class="occupation__label" data-fr="Passion 3" data-en="Passion 3">Passion 3</span>
+                    <div class="occupation__info">
+                      <h3 data-fr="Passion 3" data-en="Passion 3">Passion 3</h3>
+                      <p data-fr="Sed a ante urna. Aenean pretium diam sed porta dapibus, vitae congue nibh ligula eget dolor." data-en="Sed a ante urna. Aenean pretium diam sed porta dapibus, vitae congue nibh ligula eget dolor.">Sed a ante urna. Aenean pretium diam sed porta dapibus, vitae congue nibh ligula eget dolor.</p>
+                    </div>
+                  </div>
+
+                  <div class="occupation" role="button" tabindex="0" style="background-image:url('https://placehold.co/300x420/C2592A/EDE8DD?text=Photo')">
+                    <span class="occupation__label" data-fr="Photo" data-en="Photography">Photo</span>
+                    <div class="occupation__info">
+                      <button type="button" class="occupation__social corkboard-trigger" title="Voir mes photos" aria-label="Voir mes photos">
+                        <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path fill-rule="evenodd" d="M3,8L3,19L21,19L21,8L16,8L14.5,5L9.5,5L8,8Z M7.7,13.5A4.3,4.3 0 0,1 16.3,13.5A4.3,4.3 0 0,1 7.7,13.5Z M10.2,13.5A1.8,1.8 0 0,1 13.8,13.5A1.8,1.8 0 0,1 10.2,13.5Z"/></svg>
+                      </button>
+                      <h3 data-fr="Photo" data-en="Photography">Photo</h3>
+                      <p data-fr="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua." data-en="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
       </div>
-    </main>
+    </div>
+  </div>
+</div>
 
+<!-- ================= TABLEAU PHOTO — overlay indépendant, accessible depuis la passion Photo ================= -->
+<div class="corkboard" id="corkboard" hidden>
+  <div class="corkboard__surface">
+    <button type="button" class="corkboard__close" id="corkboardClose" data-fr="✕ Retour" data-en="✕ Back">✕ Retour</button>
+    <div class="corkboard__pins" id="corkboardPins">
+      <!-- ⚙️ À REMPLACER : ajoute/retire des photos depuis l'éditeur, elles s'organisent seules -->
+      <button type="button" class="corkpin" style="--x: 12%; --y: 18%; --rot: -6deg;">
+        <span class="corkpin__nail"></span>
+        <span class="corkpin__frame"><img src="https://placehold.co/300x300/22332B/EDE8DD?text=1" alt=""></span>
+      </button>
+      <button type="button" class="corkpin" style="--x: 32%; --y: 30%; --rot: 4deg;">
+        <span class="corkpin__nail"></span>
+        <span class="corkpin__frame"><img src="https://placehold.co/300x300/C2592A/EDE8DD?text=2" alt=""></span>
+      </button>
+      <button type="button" class="corkpin" style="--x: 52%; --y: 20%; --rot: -3deg;">
+        <span class="corkpin__nail"></span>
+        <span class="corkpin__frame"><img src="https://placehold.co/300x300/3F7D68/EDE8DD?text=3" alt=""></span>
+      </button>
+      <button type="button" class="corkpin" style="--x: 72%; --y: 32%; --rot: 5deg;">
+        <span class="corkpin__nail"></span>
+        <span class="corkpin__frame"><img src="https://placehold.co/300x300/22332B/EDE8DD?text=4" alt=""></span>
+      </button>
+      <button type="button" class="corkpin" style="--x: 22%; --y: 62%; --rot: -5deg;">
+        <span class="corkpin__nail"></span>
+        <span class="corkpin__frame"><img src="https://placehold.co/300x300/C2592A/EDE8DD?text=5" alt=""></span>
+      </button>
+      <button type="button" class="corkpin" style="--x: 62%; --y: 66%; --rot: 3deg;">
+        <span class="corkpin__nail"></span>
+        <span class="corkpin__frame"><img src="https://placehold.co/300x300/3F7D68/EDE8DD?text=6" alt=""></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="corkboard__viewer" id="corkboardViewer" hidden>
+    <div class="corkboard__viewer-photo" id="viewerPhoto">
+      <img id="viewerImg" src="" alt="">
+      <span class="corkboard__glare"></span>
+    </div>
   </div>
 </div>
 

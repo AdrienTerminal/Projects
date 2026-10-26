@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Le vrai CSS du site : ce qui s'affiche ici a exactement le même
+     rendu (couleurs, polices, ombres) que sur le site final. -->
+<link rel="stylesheet" href="../style.css">
+<style>
+  /* Habillage minimal propre à cette coquille de preview uniquement */
+  html, body{ margin:0; padding:0; background:var(--card-bg); }
+  body{ display:flex; justify-content:center; padding:18px; min-height:100vh; box-sizing:border-box; }
+  #mount{ width:100%; max-width:640px; }
+  /* En preview on ne montre qu'UNE page : les styles pensés pour un
+     tiroir qui superpose plusieurs pages ne s'appliquent pas ici. */
+  .page{ position:static !important; opacity:1 !important; height:auto !important; }
+</style>
+</head>
+<body>
+<div id="mount"></div>
+</body>
+</html>
