@@ -322,6 +322,26 @@ drawers.forEach(drawer => {
 ================================================================== */
 const occupations = document.querySelectorAll(".occupation");
 
+// Anime la tuile elle-même entre sa place dans la grille et la fiche
+// agrandie au centre (technique FLIP : First / Last / Invert / Play),
+// plutôt qu'un simple fondu sur un état qui a déjà "téléporté" —
+// movement réellement perçu entre les deux tailles/positions.
+function flipOccupation(occ, activate){
+  const startRect = occ.getBoundingClientRect();
+  if(activate) occ.classList.add("is-active");
+  else occ.classList.remove("is-active");
+  const endRect = occ.getBoundingClientRect();
+  const dx = startRect.left - endRect.left;
+  const dy = startRect.top - endRect.top;
+  const sx = startRect.width / endRect.width;
+  const sy = startRect.height / endRect.height;
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  occ.animate([
+    { transform:`translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+    { transform:"none" },
+  ], { duration:320, easing:"cubic-bezier(.2,.9,.25,1)" });
+}
+
 occupations.forEach(occ => {
   occ.addEventListener("click", (e) => {
     // ne jamais changer quelle passion est active si le clic vient
@@ -330,8 +350,8 @@ occupations.forEach(occ => {
     // le focus au même moment.
     if(e.target.closest('[contenteditable="true"]')) return;
     if(occ.classList.contains("is-active")) return;
-    occupations.forEach(o => o.classList.remove("is-active"));
-    occ.classList.add("is-active");
+    occupations.forEach(o => { if(o.classList.contains("is-active")) flipOccupation(o, false); });
+    flipOccupation(occ, true);
     sfx.select();
   });
   // ce n'est plus un <button> natif (pour permettre l'édition de texte
@@ -394,7 +414,7 @@ if(occupationsGrid){
   occupationsGrid.addEventListener("click", (e) => {
     if(e.target !== occupationsGrid) return;
     const active = occupationsGrid.querySelector(".occupation.is-active");
-    if(active) active.classList.remove("is-active");
+    if(active) flipOccupation(active, false);
   });
 }
 
@@ -564,5 +584,5 @@ document.addEventListener("keydown", (e) => {
   if(corkViewer && !corkViewer.hidden){ closeCorkViewer(); return; }
   if(corkboard && !corkboard.hidden){ closeCorkboard(); return; }
   const activeOcc = document.querySelector(".occupation.is-active");
-  if(activeOcc && occupations.length > 1) activeOcc.classList.remove("is-active");
+  if(activeOcc && occupations.length > 1) flipOccupation(activeOcc, false);
 });

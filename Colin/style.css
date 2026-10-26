@@ -547,9 +547,12 @@ h3[data-accent], .page__pitch[data-accent]{ color:var(--accent-color, var(--gold
 
 .occupation.is-active{
   position:fixed; z-index:50;
-  left:50%; top:50%; transform:translate(-50%,-50%);
+  inset:0; margin:auto;
   width:min(640px, 86vw); height:min(420px, 70vh);
-  animation:rise-in .25s var(--ease);
+  /* Pas de transform CSS de centrage ici : main.js anime lui-même la
+     tuile de sa position dans la grille jusqu'ici (effet FLIP), en
+     pilotant transform en JS. Un transform CSS fixe sur cet état final
+     romprait ce calcul. */
 }
 .occupation.is-active .occupation__info{ opacity:1; pointer-events:auto; }
 
