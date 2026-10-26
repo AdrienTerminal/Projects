@@ -96,6 +96,8 @@ const colorInputs = {
   "--paper": document.getElementById("colorPaper"),
 };
 
+const designButtons = [document.getElementById("btnDesignOriginal"), document.getElementById("btnDesignAlt")];
+
 let currentImageTarget = null;
 let saveTimer = null;
 let undoStack = [];
@@ -229,6 +231,29 @@ function syncColorInputsFromFrame(doc){
 
 Object.values(colorInputs).forEach(input => {
   input.addEventListener("input", () => { applyColorsToFrame(); scheduleSave(); });
+});
+
+// ---------------------------------------------------------------
+// Design alternatif ("Terracotta & Sauge") — option propre à
+// l'éditeur, jamais un contrôle visible sur le site public : le choix
+// est écrit une fois (attribut data-design sur <html>) et suit le
+// document normalement via l'autosave et "Télécharger le site".
+// ---------------------------------------------------------------
+function syncDesignButtons(doc){
+  const current = doc.documentElement.getAttribute("data-design") || "";
+  designButtons.forEach(b => b.classList.toggle("is-active", (b.dataset.design || "") === current));
+}
+
+designButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const doc = frame.contentDocument;
+    if(!doc || btn.classList.contains("is-active")) return;
+    const design = btn.dataset.design || "";
+    if(design) doc.documentElement.setAttribute("data-design", design);
+    else doc.documentElement.removeAttribute("data-design");
+    syncDesignButtons(doc);
+    scheduleSave();
+  });
 });
 
 // Regarde si le site bascule de thème (clic sur le switch à l'intérieur
@@ -379,6 +404,7 @@ function injectEditingInner(doc){
   syncColorInputsFromFrame(doc);
   renderColorOverrideStyle(doc);
   watchThemeChanges(doc);
+  syncDesignButtons(doc);
 
   if(!doc.getElementById("editor-injected-style")){
     const style = doc.createElement("style");

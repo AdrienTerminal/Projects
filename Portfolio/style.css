@@ -47,11 +47,12 @@ html[data-theme="dark"] body{
 html[data-theme="dark"] img{ filter:brightness(.92) contrast(1.02); }
 
 /* ==================================================================
-   DESIGN ALTERNATIF — "Terracotta & Sauge", choisi depuis le switch
-   du header (voir .design-switch) ou dans l'éditeur (mêmes boutons,
-   affichés dans l'iframe). Même principe que le mode sombre : on ne
-   redéfinit QUE les variables, tout le reste du CSS les consomme déjà
-   via var(...), donc rien d'autre n'a besoin de changer.
+   DESIGN ALTERNATIF — "Terracotta & Sauge". Choix reservé à l'éditeur
+   (bouton "Design" dans la barre d'outils) : jamais de contrôle
+   visible sur le site public, juste un attribut data-design="alt"
+   écrit une fois sur <html> et qui suit le document normalement.
+   Même principe que le mode sombre : on ne redéfinit QUE les
+   variables, tout le reste du CSS les consomme déjà via var(...).
 ================================================================== */
 html[data-design="alt"]{
   --paper:       #EDE8DD;
@@ -194,20 +195,6 @@ button{ font:inherit; color:inherit; background:none; border:none; cursor:pointe
 .theme-switch__btn + .theme-switch__btn{ border-left:2.5px solid var(--ink); }
 .theme-switch__btn.is-active{ background:var(--chip-dark); color:#fff; }
 .theme-switch__btn:not(.is-active):hover{ background:var(--yellow); color:var(--ink); }
-
-.design-switch{
-  display:flex; border:2.5px solid var(--ink); border-radius:var(--radius);
-  overflow:hidden;
-}
-.design-switch__btn{
-  font-size:0.9rem; line-height:1;
-  padding:7px 11px;
-  background:var(--card-bg); color:var(--muted);
-  transition:background .15s var(--ease), color .15s var(--ease);
-}
-.design-switch__btn + .design-switch__btn{ border-left:2.5px solid var(--ink); }
-.design-switch__btn.is-active{ background:var(--chip-dark); color:#fff; }
-.design-switch__btn:not(.is-active):hover{ background:var(--yellow); color:var(--ink); }
 
 .card__tabs{ display:flex; gap:12px; }
 .tab{
