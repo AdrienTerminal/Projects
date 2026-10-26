@@ -16,7 +16,11 @@
    ⚠️ Doit tourner sur http(s):// — pas en double-clic sur le fichier.
 ================================================================== */
 
-const DRAFT_KEY = "portfolio_editor_draft_v4";
+// Cles distinctes de celles de Portfolio/Edit/edit.js : les deux sites
+// sont servis depuis le meme domaine (adrienterminal.github.io), donc
+// IndexedDB/localStorage sont partages entre les deux origines. Avec
+// la meme cle, l'editeur de Colin chargeait le brouillon d'Adrien.
+const DRAFT_KEY = "colin_editor_draft_v1";
 
 // ---------------------------------------------------------------
 // Stockage du brouillon via IndexedDB plutôt que localStorage : la
@@ -25,7 +29,7 @@ const DRAFT_KEY = "portfolio_editor_draft_v4";
 // de fond pour des sites avec plusieurs images/vidéos plutôt que de
 // se contenter d'avertir quand la limite est atteinte.
 // ---------------------------------------------------------------
-const IDB_NAME = "portfolio_editor_store";
+const IDB_NAME = "colin_editor_store";
 const IDB_STORE = "drafts";
 let idbPromise = null;
 
