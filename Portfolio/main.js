@@ -375,6 +375,33 @@ themeButtons.forEach(btn => {
 
 
 /* ==================================================================
+   5bis) SWITCH DESIGN — look alternatif optionnel ("Terracotta &
+   Sauge"), même mécanique que le switch clair/sombre ci-dessus.
+================================================================== */
+const DESIGN_KEY = "portfolio_design";
+const designButtons = document.querySelectorAll(".design-switch__btn");
+
+function applyDesign(design){
+  if(design) document.documentElement.setAttribute("data-design", design);
+  else document.documentElement.removeAttribute("data-design");
+  designButtons.forEach(b => b.classList.toggle("is-active", (b.dataset.design || "") === (design || "")));
+}
+
+const savedDesign = localStorage.getItem(DESIGN_KEY);
+if(savedDesign) applyDesign(savedDesign);
+
+designButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if(btn.classList.contains("is-active")) return;
+    const design = btn.dataset.design || "";
+    applyDesign(design);
+    localStorage.setItem(DESIGN_KEY, design);
+    sfx.tab();
+  });
+});
+
+
+/* ==================================================================
    6) TABLEAU PHOTO — overlay en liège, ouvert depuis la passion Photo.
       Clic sur une photo punaisée -> vue rapprochée avec inclinaison
       3D et reflet qui suivent la souris (simule un tirage physique).

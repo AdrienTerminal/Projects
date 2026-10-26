@@ -46,6 +46,54 @@ html[data-theme="dark"] body{
 }
 html[data-theme="dark"] img{ filter:brightness(.92) contrast(1.02); }
 
+/* ==================================================================
+   DESIGN ALTERNATIF — "Terracotta & Sauge", choisi depuis le switch
+   du header (voir .design-switch) ou dans l'éditeur (mêmes boutons,
+   affichés dans l'iframe). Même principe que le mode sombre : on ne
+   redéfinit QUE les variables, tout le reste du CSS les consomme déjà
+   via var(...), donc rien d'autre n'a besoin de changer.
+================================================================== */
+html[data-design="alt"]{
+  --paper:       #EDE8DD;
+  --ink:         #22332B;
+  --card-bg:     #FBF8F1;
+  --red:         #C2592A;
+  --red-dark:    #9B4420;
+  --yellow:      #3F7D68;
+  --muted:       #65766C;
+  --chip-dark:   #22332B;
+
+  --font-display:'Space Grotesk', sans-serif;
+  --font-mono:   'IBM Plex Mono', monospace;
+  --font-body:   'Work Sans', sans-serif;
+
+  --radius:      3px;
+  --radius-lg:   6px;
+  --border:      1.5px;
+  --ease:        cubic-bezier(.16,1,.3,1);
+}
+html[data-design="alt"][data-theme="dark"]{
+  --paper:    #111512;
+  --card-bg:  #1A211C;
+  --ink:      #E7EEE8;
+  --red:      #E8824C;
+  --red-dark: #C2592A;
+  --yellow:   #58BC9C;
+  --muted:    #8DA095;
+}
+html[data-design="alt"] body{
+  background:
+    linear-gradient(rgba(34,51,43,.05) 1px, transparent 1px) 0 0/34px 34px,
+    linear-gradient(90deg, rgba(34,51,43,.05) 1px, transparent 1px) 0 0/34px 34px,
+    var(--paper);
+}
+html[data-design="alt"][data-theme="dark"] body{
+  background:
+    linear-gradient(rgba(231,238,232,.05) 1px, transparent 1px) 0 0/34px 34px,
+    linear-gradient(90deg, rgba(231,238,232,.05) 1px, transparent 1px) 0 0/34px 34px,
+    var(--paper);
+}
+
 /* écran de chargement : couvre tout tant que la page n'est pas prête,
    pour ne jamais laisser cliquer sur un site à moitié chargé */
 .site-loader{
@@ -146,6 +194,20 @@ button{ font:inherit; color:inherit; background:none; border:none; cursor:pointe
 .theme-switch__btn + .theme-switch__btn{ border-left:2.5px solid var(--ink); }
 .theme-switch__btn.is-active{ background:var(--chip-dark); color:#fff; }
 .theme-switch__btn:not(.is-active):hover{ background:var(--yellow); color:var(--ink); }
+
+.design-switch{
+  display:flex; border:2.5px solid var(--ink); border-radius:var(--radius);
+  overflow:hidden;
+}
+.design-switch__btn{
+  font-size:0.9rem; line-height:1;
+  padding:7px 11px;
+  background:var(--card-bg); color:var(--muted);
+  transition:background .15s var(--ease), color .15s var(--ease);
+}
+.design-switch__btn + .design-switch__btn{ border-left:2.5px solid var(--ink); }
+.design-switch__btn.is-active{ background:var(--chip-dark); color:#fff; }
+.design-switch__btn:not(.is-active):hover{ background:var(--yellow); color:var(--ink); }
 
 .card__tabs{ display:flex; gap:12px; }
 .tab{
