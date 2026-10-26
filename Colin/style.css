@@ -489,7 +489,14 @@ h3[data-accent], .page__pitch[data-accent]{ color:var(--accent-color, var(--gold
 
 .occupations{
   position:relative;
-  display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+  /* auto-fill (pas auto-fit) : quand une tuile passe en position:fixed
+     pour s'agrandir, elle quitte le flux de la grille. Avec auto-fit,
+     la colonne qu'elle occupait s'effondre et les tuiles restantes
+     s'étirent d'un coup pour combler l'espace — décalage moche. Avec
+     auto-fill, cette colonne reste réservée (vide), donc les tuiles
+     restantes gardent leur taille et leur place.
+  */
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
   gap:12px;
   flex:1; min-height:0;
 }
