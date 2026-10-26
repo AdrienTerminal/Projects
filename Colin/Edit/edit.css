@@ -1,14 +1,14 @@
 :root{
-  --bg:      #1E1F2B;
-  --panel:   #26283A;
-  --line:    #383A52;
-  --text:    #F1F1F7;
-  --muted:   #9B9DB8;
-  --accent:  #8C7CF0;
-  --accent-hover: #A196F5;
-  --green:   #57D68D;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-body: 'Inter', sans-serif;
+  --bg:      #0D0F14;
+  --panel:   #161A23;
+  --line:    #2C2518;
+  --text:    #EDE6D4;
+  --muted:   #8891A3;
+  --accent:  #E7B94A;
+  --accent-hover: #F7D37C;
+  --green:   #49D6CC;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Rajdhani', sans-serif;
 }
 
 *{ box-sizing:border-box; margin:0; padding:0; }

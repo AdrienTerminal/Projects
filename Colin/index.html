@@ -14,7 +14,7 @@
 <meta property="og:image" content="og-image.jpg">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -184,78 +184,7 @@
           </div>
 
           <div class="about-split" id="aboutSplit">
-            <!-- ================= MOI — frise chronologique compacte, alternée haut/bas ================= -->
-            <div class="about-tab" data-about-tab="me" role="button" tabindex="0">
-              <span class="about-tab__label" data-fr="Moi" data-en="Me">Moi</span>
-              <div class="about-tab__preview about-tab__preview--me">
-                <svg viewBox="0 0 40 32" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="2.6"/><circle cx="26" cy="5" r="2.6"/><circle cx="19" cy="27" r="2.6"/><path d="M7 7.6v3.4M26 7.6v3.4M19 24.4v-3.4"/><path d="M2 11h11l6 5-6 5H2l5-5-5-5z"/><path d="M21 11h11l6 5-6 5H21l5-5-5-5z"/></svg>
-              </div>
-              <div class="about-tab__content">
-                <button type="button" class="timeline__nav timeline__nav--prev" aria-label="Étapes précédentes">‹</button>
-                <div class="timeline" id="timeline">
-                  <div class="timeline__scroll">
-                    <div class="timeline__track"></div>
-
-                    <!-- ⚙️ À REMPLACER : une étape = une date, une photo, un titre. Garde-les courts : le but est de lire tout le parcours d'un coup d'œil. Jusqu'à 10 étapes environ. -->
-                    <div class="timeline__node timeline__node--up">
-                      <span class="timeline__dot"></span>
-                      <div class="timeline__card">
-                        <div class="timeline__photo-frame">
-                          <img class="timeline__photo" src="https://placehold.co/160x160/22332B/EDE8DD?text=%F0%9F%93%85" alt="">
-                        </div>
-                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
-                        <h4 class="timeline__title" data-fr="Étape 1" data-en="Milestone 1">Étape 1</h4>
-                      </div>
-                    </div>
-
-                    <div class="timeline__node timeline__node--down">
-                      <span class="timeline__dot"></span>
-                      <div class="timeline__card">
-                        <div class="timeline__photo-frame">
-                          <img class="timeline__photo" src="https://placehold.co/160x160/C2592A/EDE8DD?text=%F0%9F%93%85" alt="">
-                        </div>
-                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
-                        <h4 class="timeline__title" data-fr="Étape 2" data-en="Milestone 2">Étape 2</h4>
-                      </div>
-                    </div>
-
-                    <div class="timeline__node timeline__node--up">
-                      <span class="timeline__dot"></span>
-                      <div class="timeline__card">
-                        <div class="timeline__photo-frame">
-                          <img class="timeline__photo" src="https://placehold.co/160x160/3F7D68/EDE8DD?text=%F0%9F%93%85" alt="">
-                        </div>
-                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
-                        <h4 class="timeline__title" data-fr="Étape 3" data-en="Milestone 3">Étape 3</h4>
-                      </div>
-                    </div>
-
-                    <div class="timeline__node timeline__node--down">
-                      <span class="timeline__dot"></span>
-                      <div class="timeline__card">
-                        <div class="timeline__photo-frame">
-                          <img class="timeline__photo" src="https://placehold.co/160x160/22332B/EDE8DD?text=%F0%9F%93%85" alt="">
-                        </div>
-                        <span class="timeline__date" data-fr="AAAA" data-en="YYYY">AAAA</span>
-                        <h4 class="timeline__title" data-fr="Étape 4" data-en="Milestone 4">Étape 4</h4>
-                      </div>
-                    </div>
-
-                    <!-- dernière étape, spéciale : ne pas supprimer, c'est l'appel à recrutement -->
-                    <div class="timeline__node timeline__node--cta timeline__node--up">
-                      <span class="timeline__dot timeline__dot--cta"></span>
-                      <div class="timeline__card timeline__card--cta">
-                        <h4 class="timeline__title" data-fr="Et la suite ?" data-en="What's next?">Et la suite ?</h4>
-                        <p class="timeline__text" data-fr="Aujourd'hui, je recherche une opportunité pour continuer à grandir. Si mon profil vous parle, discutons-en !" data-en="I'm now looking for an opportunity to keep growing. If my profile speaks to you, let's talk!">Aujourd'hui, je recherche une opportunité pour continuer à grandir. Si mon profil vous parle, discutons-en !</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <button type="button" class="timeline__nav timeline__nav--next" aria-label="Étapes suivantes">›</button>
-              </div>
-            </div>
-
-            <!-- ================= MES PASSIONS — panneaux diagonaux façon launcher ================= -->
+            <!-- ================= MES PASSIONS ================= -->
             <div class="about-tab is-active" data-about-tab="passions" role="button" tabindex="0">
               <span class="about-tab__label" data-fr="Mes passions" data-en="My passions">Mes passions</span>
               <div class="about-tab__preview about-tab__preview--passions">

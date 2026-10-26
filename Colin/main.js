@@ -1,8 +1,11 @@
 /* ==================================================================
    PORTFOLIO COLIN VIALLE — logique du site
-   Même moteur que le site principal : onglets Projects/About me,
-   tiroirs de projets avec pages défilables, panneaux "Moi" / "Mes
-   passions", switch de langue, switch clair/sombre, tableau photo.
+   Même moteur de contenu que le site principal (mêmes blocs, même
+   système d'édition), mais une mise en scène différente : sélection
+   de projet en tuiles (façon écran de sélection) plutôt qu'une rangée
+   de pilules + tiroir, navigation de page par chips plutôt que barre
+   de défilement, et une seule section "Mes passions" en grille qui se
+   détache en fiche agrandie au clic plutôt que des panneaux diagonaux.
 ================================================================== */
 
 /* ==================================================================
@@ -167,6 +170,15 @@ if(pills.length){
   openDrawer(firstId);
 }
 
+// Chaque tuile de projet reprend l'image de la première page de son
+// tiroir comme vignette de fond (--project-thumb), façon sélection de
+// champion — purement décoratif, calculé une fois au chargement.
+pills.forEach(pill => {
+  const drawer = document.querySelector(`.project-drawer[data-drawer="${pill.dataset.project}"]`);
+  const heroImg = drawer?.querySelector(".page__img, .page__photo");
+  if(heroImg && heroImg.src) pill.style.setProperty("--project-thumb", `url("${heroImg.src}")`);
+});
+
 // Chaque tiroir gère sa propre barre : clic pour sauter, glisser pour lerp entre
 // les pages.
 drawers.forEach(drawer => {
@@ -200,6 +212,7 @@ drawers.forEach(drawer => {
       if(idx !== lastPageIndex){
         lastPageIndex = idx;
         sfx.scroll();
+        renderPageNav();
       }
     }
 
@@ -220,8 +233,55 @@ drawers.forEach(drawer => {
       target = 0; current = 0; lastPageIndex = 0;
       scrollWrap.scrollLeft = 0;
       applyThumb(0);
+      renderPageNav();
     }
   };
+
+  // Navigation par chips (façon indicateurs de manche) : remplace la
+  // barre de défilement classique du site principal — construite une
+  // fois, à partir du nombre de pages réel de CE tiroir.
+  let pageNav = null;
+  let dots = [];
+  if(pageCount > 1){
+    pageNav = document.createElement("div");
+    pageNav.className = "page-nav";
+
+    const prevBtn = document.createElement("button");
+    prevBtn.type = "button";
+    prevBtn.className = "page-nav__btn";
+    prevBtn.setAttribute("aria-label", "Page précédente");
+    prevBtn.textContent = "‹";
+
+    const dotsWrap = document.createElement("div");
+    dotsWrap.className = "page-nav__dots";
+    for(let i = 0; i < pageCount; i++){
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "page-nav__dot";
+      dot.setAttribute("aria-label", `Page ${i + 1}`);
+      dot.addEventListener("click", () => goToRatio(i / (pageCount - 1)));
+      dotsWrap.appendChild(dot);
+      dots.push(dot);
+    }
+
+    const nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.className = "page-nav__btn";
+    nextBtn.setAttribute("aria-label", "Page suivante");
+    nextBtn.textContent = "›";
+
+    prevBtn.addEventListener("click", () => goToRatio(Math.max(0, lastPageIndex - 1) / (pageCount - 1)));
+    nextBtn.addEventListener("click", () => goToRatio(Math.min(pageCount - 1, lastPageIndex + 1) / (pageCount - 1)));
+
+    pageNav.append(prevBtn, dotsWrap, nextBtn);
+    track.insertAdjacentElement("afterend", pageNav);
+  }
+
+  function renderPageNav(){
+    if(!dots.length) return;
+    const idx = Math.round(current * (pageCount - 1));
+    dots.forEach((d, i) => d.classList.toggle("is-active", i === idx));
+  }
 
   track.addEventListener("click", (e) => {
     if(e.target === thumb) return;
@@ -245,6 +305,7 @@ drawers.forEach(drawer => {
 
   window.addEventListener("resize", () => applyThumb(current));
   applyThumb(0);
+  renderPageNav();
 });
 
 
@@ -321,18 +382,16 @@ aboutTabs.forEach(tab => {
   });
 });
 
-/* ---- Navigation de la frise (flèches gauche/droite) --------------
-   stopPropagation pour ne jamais interférer avec le clic du panneau
-   "Moi" qui l'entoure. */
-document.querySelectorAll(".timeline__nav").forEach(btn => {
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const timeline = btn.closest(".about-tab__content")?.querySelector(".timeline");
-    if(!timeline) return;
-    const amount = timeline.clientWidth * 0.7;
-    timeline.scrollBy({ left: btn.classList.contains("timeline__nav--prev") ? -amount : amount, behavior:"smooth" });
+/* ---- Fiche "passion" agrandie : un clic en dehors d'une tuile (sur
+   le fond assombri) la referme, comme une fenêtre modale. ---- */
+const occupationsGrid = document.getElementById("occupations");
+if(occupationsGrid){
+  occupationsGrid.addEventListener("click", (e) => {
+    if(e.target !== occupationsGrid) return;
+    const active = occupationsGrid.querySelector(".occupation.is-active");
+    if(active) active.classList.remove("is-active");
   });
-});
+}
 
 
 /* ==================================================================
@@ -498,5 +557,7 @@ if(corkViewerPhoto){
 document.addEventListener("keydown", (e) => {
   if(e.key !== "Escape") return;
   if(corkViewer && !corkViewer.hidden){ closeCorkViewer(); return; }
-  if(corkboard && !corkboard.hidden){ closeCorkboard(); }
+  if(corkboard && !corkboard.hidden){ closeCorkboard(); return; }
+  const activeOcc = document.querySelector(".occupation.is-active");
+  if(activeOcc && occupations.length > 1) activeOcc.classList.remove("is-active");
 });
