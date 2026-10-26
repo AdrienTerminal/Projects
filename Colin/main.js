@@ -322,6 +322,13 @@ drawers.forEach(drawer => {
 ================================================================== */
 const occupations = document.querySelectorAll(".occupation");
 
+// Nombre de colonnes figé sur le nombre réel de tuiles (voir le
+// commentaire sur .occupations dans style.css) : quel que soit le
+// nombre de passions, elles remplissent tout l'écran disponible.
+if(occupations.length && occupations[0].parentElement){
+  occupations[0].parentElement.style.setProperty("--passion-count", occupations.length);
+}
+
 // Anime la tuile elle-même entre sa place dans la grille et la fiche
 // agrandie au centre (technique FLIP : First / Last / Invert / Play),
 // plutôt qu'un simple fondu sur un état qui a déjà "téléporté" —
@@ -339,7 +346,7 @@ function flipOccupation(occ, activate){
   occ.animate([
     { transform:`translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
     { transform:"none" },
-  ], { duration:320, easing:"cubic-bezier(.2,.9,.25,1)" });
+  ], { duration:360, easing:"cubic-bezier(.22,.61,.36,1)" });
 }
 
 occupations.forEach(occ => {

@@ -489,14 +489,17 @@ h3[data-accent], .page__pitch[data-accent]{ color:var(--accent-color, var(--gold
 
 .occupations{
   position:relative;
-  /* auto-fill (pas auto-fit) : quand une tuile passe en position:fixed
-     pour s'agrandir, elle quitte le flux de la grille. Avec auto-fit,
-     la colonne qu'elle occupait s'effondre et les tuiles restantes
-     s'étirent d'un coup pour combler l'espace — décalage moche. Avec
-     auto-fill, cette colonne reste réservée (vide), donc les tuiles
-     restantes gardent leur taille et leur place.
-  */
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+  /* Nombre de colonnes = nombre réel de tuiles (--passion-count, posé
+     par main.js), jamais recalculé depuis le nombre d'éléments
+     actuellement dans le flux : quand une tuile passe en
+     position:fixed pour s'agrandir, elle en sort, mais la grille garde
+     le même nombre de colonnes — les tuiles restantes ne bougent pas.
+     Avec une valeur fixe (pas auto-fit/auto-fill, qui dépendent de la
+     largeur du conteneur), les tuiles remplissent toujours tout
+     l'écran, quel que soit leur nombre. */
+  display:grid;
+  grid-template-columns:repeat(var(--passion-count, 4), 1fr);
+  grid-template-rows:1fr;
   gap:12px;
   flex:1; min-height:0;
 }
