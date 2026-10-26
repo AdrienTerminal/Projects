@@ -320,24 +320,19 @@ if(occupations.length && occupations[0].parentElement){
   occupations[0].parentElement.style.setProperty("--passion-count", occupations.length);
 }
 
-// Anime la tuile elle-même entre sa place dans la grille et la fiche
-// agrandie au centre (technique FLIP : First / Last / Invert / Play),
-// plutôt qu'un simple fondu sur un état qui a déjà "téléporté" —
-// movement réellement perçu entre les deux tailles/positions.
-function flipOccupation(occ, activate){
-  const startRect = occ.getBoundingClientRect();
+// Animation volontairement simple : un fondu + très léger zoom sur
+// place (pas de trajet depuis la tuile d'origine). Un mouvement plus
+// ample (FLIP depuis la position de la tuile) a été essayé puis
+// retiré : même sans rebond dans la courbe, le fait de "grandir" à
+// l'écran se lisait comme peu pro.
+function toggleOccupation(occ, activate){
   if(activate) occ.classList.add("is-active");
   else occ.classList.remove("is-active");
-  const endRect = occ.getBoundingClientRect();
-  const dx = startRect.left - endRect.left;
-  const dy = startRect.top - endRect.top;
-  const sx = startRect.width / endRect.width;
-  const sy = startRect.height / endRect.height;
   if(window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   occ.animate([
-    { transform:`translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
-    { transform:"none" },
-  ], { duration:360, easing:"cubic-bezier(.22,.61,.36,1)" });
+    { opacity:0, transform:"scale(.97)" },
+    { opacity:1, transform:"scale(1)" },
+  ], { duration:180, easing:"ease-out" });
 }
 
 occupations.forEach(occ => {
@@ -348,8 +343,8 @@ occupations.forEach(occ => {
     // le focus au même moment.
     if(e.target.closest('[contenteditable="true"]')) return;
     if(occ.classList.contains("is-active")) return;
-    occupations.forEach(o => { if(o.classList.contains("is-active")) flipOccupation(o, false); });
-    flipOccupation(occ, true);
+    occupations.forEach(o => { if(o.classList.contains("is-active")) toggleOccupation(o, false); });
+    toggleOccupation(occ, true);
     sfx.select();
   });
   // ce n'est plus un <button> natif (pour permettre l'édition de texte
@@ -412,7 +407,7 @@ if(occupationsGrid){
   occupationsGrid.addEventListener("click", (e) => {
     if(e.target !== occupationsGrid) return;
     const active = occupationsGrid.querySelector(".occupation.is-active");
-    if(active) flipOccupation(active, false);
+    if(active) toggleOccupation(active, false);
   });
 }
 
@@ -582,5 +577,5 @@ document.addEventListener("keydown", (e) => {
   if(corkViewer && !corkViewer.hidden){ closeCorkViewer(); return; }
   if(corkboard && !corkboard.hidden){ closeCorkboard(); return; }
   const activeOcc = document.querySelector(".occupation.is-active");
-  if(activeOcc && occupations.length > 1) flipOccupation(activeOcc, false);
+  if(activeOcc && occupations.length > 1) toggleOccupation(activeOcc, false);
 });
