@@ -501,7 +501,7 @@ function injectEditingInner(doc){
         const nail = doc.createElement("span"); nail.className = "corkpin__nail";
         const frame = doc.createElement("span"); frame.className = "corkpin__frame";
         const img = doc.createElement("img");
-        img.src = "https://placehold.co/300x300/2a2a2a/888888?text=%F0%9F%93%B7"; img.alt = "";
+        img.src = "placeholders/photo.svg"; img.alt = "";
         frame.appendChild(img);
         pin.appendChild(nail); pin.appendChild(frame);
         corkboardPinsEl.appendChild(pin);
@@ -796,7 +796,7 @@ function buildTimelineNode(doc){
   photoFrame.className = "timeline__photo-frame";
   const img = doc.createElement("img");
   img.className = "timeline__photo";
-  img.src = "https://placehold.co/160x160/22332B/FBF8F1?text=%F0%9F%93%B7";
+  img.src = "placeholders/photo.svg";
   img.alt = "";
   photoFrame.appendChild(img);
 
@@ -1101,7 +1101,7 @@ function buildPageElement(doc, pageData){
     if(hero.imgSize && hero.imgSize !== "normal") page.style.gridTemplateColumns = IMG_SIZE_COLUMNS[hero.imgSize];
     const img = doc.createElement("img");
     img.className = "page__img";
-    img.src = hero.src || "https://placehold.co/460x300/22332B/FBF8F1?text=Image";
+    img.src = hero.src || "placeholders/tile-dark.svg";
     img.alt = "";
     img.style.objectPosition = hero.objectPosition || "50% 50%";
     page.appendChild(img);
@@ -1868,7 +1868,7 @@ function renderBlockBody(block){
   if(block.type === "image"){
     const thumb = doc.createElement("img");
     thumb.className = "pe-image-preview";
-    thumb.src = block.src || "https://placehold.co/300x150/9C5FE0/FBF8F1?text=Image";
+    thumb.src = block.src || "placeholders/tile-dark.svg";
     thumb.style.objectFit = "cover";
     thumb.style.objectPosition = block.objectPosition || "50% 50%";
     body.appendChild(thumb);
@@ -2154,22 +2154,22 @@ function nextProjectId(doc){
 function defaultProjectPages(){
   return [
     { textAlign:"top", blocks:[
-      { type:"image", src:"https://placehold.co/460x300/22332B/FBF8F1?text=Overview", imgSize:"normal" },
+      { type:"image", src:"placeholders/tile-dark.svg", imgSize:"normal" },
       { type:"text", style:"accent", fr:"Résumé en une phrase.", en:"One-sentence summary." },
       BLOCK_DEFS.title.make(), BLOCK_DEFS.tags.make(), BLOCK_DEFS.text.make(), BLOCK_DEFS.link.make(),
     ]},
     { textAlign:"top", blocks:[
-      { type:"image", src:"https://placehold.co/460x300/C2592A/22332B?text=Features", imgSize:"normal" },
+      { type:"image", src:"placeholders/tile-terracotta.svg", imgSize:"normal" },
       { type:"title", fr:"Fonctionnalités clés", en:"Key Features" }, BLOCK_DEFS.list.make(), BLOCK_DEFS.link.make(),
     ]},
     { textAlign:"top", blocks:[
-      { type:"image", src:"https://placehold.co/460x300/3F7D68/22332B?text=Role", imgSize:"normal" },
+      { type:"image", src:"placeholders/tile-sage.svg", imgSize:"normal" },
       { type:"title", fr:"Mon rôle", en:"My Role" },
       { type:"text", style:"discret", fr:"Équipe · durée", en:"Team · duration" },
       BLOCK_DEFS.list.make(), BLOCK_DEFS.link.make(),
     ]},
     { textAlign:"top", blocks:[
-      { type:"image", src:"https://placehold.co/460x300/22332B/FBF8F1?text=Results", imgSize:"normal" },
+      { type:"image", src:"placeholders/tile-dark.svg", imgSize:"normal" },
       { type:"title", fr:"Résultats", en:"Results" }, BLOCK_DEFS.stats.make(), BLOCK_DEFS.text.make(),
     ]},
   ];
