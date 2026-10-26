@@ -240,6 +240,11 @@ drawers.forEach(drawer => {
   // Navigation par chips (façon indicateurs de manche) : remplace la
   // barre de défilement classique du site principal — construite une
   // fois, à partir du nombre de pages réel de CE tiroir.
+  // Idempotent : si ce script tourne une 2e fois sur un DOM déjà
+  // initialisé (ex. reloadFromCurrentState() de l'éditeur, qui recharge
+  // un snapshot du DOM courant), on retire l'ancien bloc avant d'en
+  // reconstruire un, pour ne jamais en empiler deux.
+  drawer.querySelectorAll(":scope > .page-nav").forEach(el => el.remove());
   let pageNav = null;
   let dots = [];
   if(pageCount > 1){
