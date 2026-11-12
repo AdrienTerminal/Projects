@@ -433,6 +433,12 @@ function injectEditingInner(doc){
       .editor-badge--danger{ border-color:#E4483F; }
       .editor-badge--danger:hover{ background:#E4483F; }
       .editor-img-wrap{ position:relative; width:100%; height:100%; }
+      /* Dans une annexe empilée, ce wrapper doit se comporter exactement
+         comme .page__img/.page__hero-media sur le site publié (voir
+         style.css) : sinon, en editor, chaque image garde sa hauteur
+         "naturelle" au lieu de se partager l'espace disponible, et la
+         pile deborde avec un ascenseur au lieu de retrecir. */
+      .page__annex > .editor-img-wrap{ flex:1 1 0; height:auto; min-height:0; }
       .editor-add-tag{
         font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
         color:#5B8DEF; background:transparent; border:1.5px dashed #5B8DEF;
@@ -1912,6 +1918,12 @@ function renderReframeControl(block, previewEl){
   if(previewEl){
     previewEl.classList.add("pe-reframe-draggable");
     previewEl.title = "Glisser pour cadrer";
+    // Un <img> (ou <video> dans certains navigateurs) est draggable par
+    // défaut : sans ça, le pointerdown ci-dessous démarre AUSSI le drag
+    // natif du navigateur (l'image "ghost" suit le curseur) au lieu de
+    // juste recadrer - les deux gestes entrent en conflit.
+    previewEl.draggable = false;
+    previewEl.addEventListener("dragstart", (e) => e.preventDefault());
     let dragging = false;
     const posFromEvent = (e) => {
       const rect = previewEl.getBoundingClientRect();
@@ -1920,6 +1932,7 @@ function renderReframeControl(block, previewEl){
       return `${Math.round(x * 100)}% ${Math.round(y * 100)}%`;
     };
     previewEl.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
       dragging = true;
       previewEl.setPointerCapture(e.pointerId);
       setPosition(posFromEvent(e));
