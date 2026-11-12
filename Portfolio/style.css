@@ -452,6 +452,20 @@ h3[data-accent], .page__pitch[data-accent]{ color:var(--accent-color, var(--red-
   box-shadow:5px 5px 0 var(--ink);
 }
 
+/* Annexe : la colonne latérale d'une page. Peut contenir un seul média
+   (comme avant) ou plusieurs, empilés verticalement — chacun se partage
+   alors la hauteur disponible, avec un défilement interne si la pile
+   dépasse la hauteur de la page plutôt que de la faire déborder. */
+.page__annex{
+  height:100%; width:100%;
+  display:flex; flex-direction:column; gap:16px;
+  overflow-y:auto;
+}
+.page__annex > .page__img,
+.page__annex > .page__hero-media{
+  flex:1 1 0; height:auto; min-height:0;
+}
+
 /* vidéo en position "héros" : même traitement que l'image héros.
    En mode pleine largeur (une seule colonne), la classe --capped
    plafonne la hauteur ; dans les autres tailles, la vidéo s'étire
@@ -774,6 +788,8 @@ h3[data-accent], .page__pitch[data-accent]{ color:var(--accent-color, var(--red-
 
   .page{ grid-template-columns:1fr; height:auto; }
   .page__img{ order:-1; height:200px; }
+  .page__annex{ order:-1; max-height:260px; }
+  .page__annex > .page__img, .page__annex > .page__hero-media{ flex:1 1 auto; height:auto; }
 
   .occupations{ flex-direction:column; height:auto; }
   .occupation{ min-height:64px; }
