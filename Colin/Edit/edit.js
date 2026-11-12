@@ -892,9 +892,9 @@ const BLOCK_DEFS = {
   list:   { label:"Liste",        make:() => ({ type:"list", items:[{fr:"Élément", en:"Item"}] }) },
   stats:  { label:"Statistiques", make:() => ({ type:"stats", items:[{number:"0", fr:"métrique", en:"metric"}] }) },
   link:   { label:"Lien",         make:() => ({ type:"link", href:"#", fr:"Voir sur itch.io ↗", en:"View on itch.io ↗" }) },
-  image:  { label:"Image",        make:() => ({ type:"image", src:"", imgSize:"normal", objectPosition:"50% 50%" }) },
-  video:  { label:"Vidéo",        make:() => ({ type:"video", category:"video", mode:"youtube", src:"", youtubeId:"", itchUrl:"", imgSize:"twothirds", objectPosition:"50% 50%" }) },
-  game:   { label:"Jeu itch.io",  make:() => ({ type:"video", category:"game", mode:"itch", src:"", youtubeId:"", itchUrl:"", imgSize:"twothirds", objectPosition:"50% 50%" }) },
+  image:  { label:"Image",        make:() => ({ type:"image", src:"", placement:"text", objectPosition:"50% 50%" }) },
+  video:  { label:"Vidéo",        make:() => ({ type:"video", category:"video", mode:"youtube", src:"", youtubeId:"", itchUrl:"", placement:"text", objectPosition:"50% 50%" }) },
+  game:   { label:"Jeu itch.io",  make:() => ({ type:"video", category:"game", mode:"itch", src:"", youtubeId:"", itchUrl:"", placement:"text", objectPosition:"50% 50%" }) },
 };
 
 // ---- Lecture du DOM vers l'état JS du panneau ----
@@ -924,27 +924,38 @@ function readProjectState(projectId){
   const lang = doc.documentElement.lang === "en" ? "en" : "fr";
   const ALIGN_FROM_CSS = { "flex-start":"top", "center":"center", "flex-end":"bottom" };
   const pages = [...drawer.querySelectorAll(".page")].map(page => {
-    const heroImg = page.querySelector(".page__img");
-    const heroVideo = page.querySelector(".page__hero-media");
     const textEl = page.querySelector(".page__text");
     const textAlign = ALIGN_FROM_CSS[textEl.style.justifyContent] || "top";
     const cols = page.style.gridTemplateColumns || "";
-    const imgSize = detectImgSize(cols);
+    const annexWidth = detectAnnexWidth(cols);
     const blocks = [];
-    if(heroImg){
-      blocks.push({ type:"image", src:heroImg.src, imgSize, objectPosition:heroImg.style.objectPosition || "50% 50%" });
-    }else if(heroVideo){
-      const v = heroVideo.querySelector("video");
-      const ifr = heroVideo.querySelector("iframe");
-      if(v){
-        blocks.push({ type:"video", category:"video", mode:"upload", src:v.src, youtubeId:"", itchUrl:"", imgSize, objectPosition:v.style.objectPosition || "50% 50%" });
-      }else if(ifr){
-        const embedMode = heroVideo.dataset.embedMode === "itch" ? "itch" : "youtube";
-        blocks.push(embedMode === "itch"
-          ? { type:"video", category:"game", mode:"itch", src:"", youtubeId:"", itchUrl:ifr.src, imgSize }
-          : { type:"video", category:"video", mode:"youtube", src:"", youtubeId:extractYouTubeId(ifr.src), itchUrl:"", imgSize });
+
+    // Annexe : soit l'ancien format (un seul .page__img/.page__hero-media
+    // posé directement comme 2e enfant de .page), soit le nouveau
+    // (.page__annex, qui peut empiler plusieurs images/vidéos). Les deux
+    // sont lus de la même façon : chaque média rencontré devient un bloc
+    // avec placement:"annex", dans l'ordre où il apparaît. querySelectorAll
+    // (pas .children) : l'éditeur enveloppe parfois une image héros dans
+    // un .editor-img-wrap pendant l'édition (badges au survol).
+    const annexRoot = page.querySelector(".page__annex") || page;
+    const annexMedia = [...annexRoot.querySelectorAll(".page__img, .page__hero-media")];
+    annexMedia.forEach(media => {
+      if(media.classList.contains("page__img")){
+        blocks.push({ type:"image", src:media.src, placement:"annex", objectPosition:media.style.objectPosition || "50% 50%" });
+      }else if(media.classList.contains("page__hero-media")){
+        const v = media.querySelector("video");
+        const ifr = media.querySelector("iframe");
+        if(v){
+          blocks.push({ type:"video", category:"video", mode:"upload", src:v.src, youtubeId:"", itchUrl:"", placement:"annex", objectPosition:v.style.objectPosition || "50% 50%" });
+        }else if(ifr){
+          const embedMode = media.dataset.embedMode === "itch" ? "itch" : "youtube";
+          blocks.push(embedMode === "itch"
+            ? { type:"video", category:"game", mode:"itch", src:"", youtubeId:"", itchUrl:ifr.src, placement:"annex" }
+            : { type:"video", category:"video", mode:"youtube", src:"", youtubeId:extractYouTubeId(ifr.src), itchUrl:"", placement:"annex" });
+        }
       }
-    }
+    });
+
     [...textEl.children].forEach(child => {
       if(child.classList.contains("editor-badges")) return;
       if(child.tagName === "H3"){
@@ -962,38 +973,45 @@ function readProjectState(projectId){
       }else if(child.classList.contains("itch-link")){
         blocks.push({ type:"link", href:child.getAttribute("href") || "#", fr:child.dataset.fr || child.textContent, en:child.dataset.en || child.textContent, accentColor:readAccent(child) });
       }else if(child.classList.contains("page__photo")){
-        blocks.push({ type:"image", src:child.src, imgSize:"normal", objectPosition:child.style.objectPosition || "50% 50%" });
+        blocks.push({ type:"image", src:child.src, placement:"text", objectPosition:child.style.objectPosition || "50% 50%" });
       }else if(child.classList.contains("page__video")){
         const v = child.querySelector("video");
-        blocks.push({ type:"video", category:"video", mode:"upload", src: v ? v.src : "", youtubeId:"", itchUrl:"", objectPosition: v ? (v.style.objectPosition || "50% 50%") : "50% 50%" });
+        blocks.push({ type:"video", category:"video", mode:"upload", src: v ? v.src : "", youtubeId:"", itchUrl:"", placement:"text", objectPosition: v ? (v.style.objectPosition || "50% 50%") : "50% 50%" });
       }else if(child.classList.contains("page__video-embed")){
         const ifr = child.querySelector("iframe");
         const src = ifr ? ifr.src : "";
         const embedMode = child.dataset.embedMode === "itch" ? "itch" : "youtube";
         blocks.push(embedMode === "itch"
-          ? { type:"video", category:"game", mode:"itch", src:"", youtubeId:"", itchUrl:src }
-          : { type:"video", category:"video", mode:"youtube", src:"", youtubeId: extractYouTubeId(src), itchUrl:"" });
+          ? { type:"video", category:"game", mode:"itch", src:"", youtubeId:"", itchUrl:src, placement:"text" }
+          : { type:"video", category:"video", mode:"youtube", src:"", youtubeId: extractYouTubeId(src), itchUrl:"", placement:"text" });
       }else if(child.tagName === "P"){
         blocks.push({ type:"text", style:"normal", fr:child.dataset.fr || child.innerHTML, en:child.dataset.en || child.innerHTML });
       }
     });
-    return { textAlign, blocks };
+    return { textAlign, annexWidth, blocks };
   });
   return { projectId, pillLabel: pill.textContent.trim(), activePage: 0, lang, pages };
 }
 
 // ---- Construction d'éléments DOM depuis l'état (jamais de HTML texte : pas de risque d'échappement) ----
-const IMG_SIZE_COLUMNS = {
+// Ancien système : presets fixes mappés à des grid-template-columns toutes
+// faites. Toujours reconnus en lecture pour ne pas casser les pages
+// existantes, mais la largeur de l'annexe est maintenant un curseur en
+// pixels (page.annexWidth).
+const LEGACY_IMG_SIZE_COLUMNS = {
   small:"1fr 220px", normal:"1fr 320px", large:"1fr 420px",
   half:"1fr 1fr", twothirds:"1fr 2fr", full:"1fr",
 };
-function detectImgSize(cols){
-  for(const [key, val] of Object.entries(IMG_SIZE_COLUMNS)){
-    if(cols === val) return key;
+const DEFAULT_ANNEX_WIDTH = 320;
+function detectAnnexWidth(cols){
+  if(!cols) return DEFAULT_ANNEX_WIDTH;
+  const pxMatch = cols.match(/1fr\s+(\d+)px/);
+  if(pxMatch) return Number(pxMatch[1]);
+  for(const [key, val] of Object.entries(LEGACY_IMG_SIZE_COLUMNS)){
+    if(cols === val) return key === "full" ? DEFAULT_ANNEX_WIDTH : key === "half" ? 460 : key === "twothirds" ? 300 : { small:220, normal:320, large:420 }[key];
   }
-  return "normal";
+  return DEFAULT_ANNEX_WIDTH;
 }
-
 function applyAccent(el, block){
   if(block.accentColor){
     el.dataset.accent = "1";
@@ -1017,7 +1035,14 @@ function buildPageElement(doc, pageData){
   const lang = doc.documentElement.lang === "en" ? "en" : "fr";
   const pick = (obj) => (obj[lang] !== undefined && obj[lang] !== "" ? obj[lang] : obj.fr);
 
-  let hero = null; // le premier bloc "image" OU "vidéo" rencontré devient le média principal (colonne fixe)
+  const annexBlocks = []; // images/vidéos avec placement:"annex" — empilées dans la colonne latérale
+
+  function isAnnex(b){
+    if(b.type !== "image" && b.type !== "video") return false;
+    if(b.placement !== "annex") return false;
+    if(b.type === "image") return true;
+    return (b.mode === "youtube" && b.youtubeId) || (b.mode === "upload" && b.src) || (b.mode === "itch" && b.itchUrl);
+  }
 
   pageData.blocks.forEach(b => {
     let el = null;
@@ -1056,17 +1081,16 @@ function buildPageElement(doc, pageData){
       applyAccent(el, b);
     }
     else if(b.type === "image"){
-      if(!hero){
-        hero = b; // traité après la boucle : devient le média principal, hors du flux
+      if(isAnnex(b)){
+        annexBlocks.push(b);
       }else if(b.src){
         el = doc.createElement("img"); el.className = "page__photo"; el.src = b.src; el.alt = "";
         el.style.objectPosition = b.objectPosition || "50% 50%";
       }
     }
     else if(b.type === "video"){
-      const hasContent = (b.mode === "youtube" && b.youtubeId) || (b.mode === "upload" && b.src) || (b.mode === "itch" && b.itchUrl);
-      if(!hero && hasContent){
-        hero = b;
+      if(isAnnex(b)){
+        annexBlocks.push(b);
       }else if(b.mode === "youtube" && b.youtubeId){
         el = doc.createElement("div"); el.className = "page__video-embed"; el.dataset.embedMode = "youtube";
         const ifr = doc.createElement("iframe");
@@ -1097,49 +1121,51 @@ function buildPageElement(doc, pageData){
   const hasOtherContent = textWrap.children.length > 0;
   if(hasOtherContent) page.appendChild(textWrap);
 
-  if(!hero){
-    // aucune image ni vidéo : le texte occupe toute la largeur, pas de
-    // colonne fixe imposée pour rien.
+  if(annexBlocks.length === 0){
+    // aucune image ni vidéo en annexe : le texte occupe toute la largeur,
+    // pas de colonne fixe imposée pour rien.
     page.style.gridTemplateColumns = "1fr";
-  }else if(hero.type === "image"){
-    if(hero.imgSize && hero.imgSize !== "normal") page.style.gridTemplateColumns = IMG_SIZE_COLUMNS[hero.imgSize];
-    const img = doc.createElement("img");
-    img.className = "page__img";
-    img.src = hero.src || "placeholders/tile-dark.svg";
-    img.alt = "";
-    img.style.objectPosition = hero.objectPosition || "50% 50%";
-    page.appendChild(img);
-  }else if(hero.type === "video"){
-    if(hero.imgSize && hero.imgSize !== "normal") page.style.gridTemplateColumns = IMG_SIZE_COLUMNS[hero.imgSize];
-    // pleine largeur ET seul contenu de la page : occupe vraiment toute
-    // la page (pas de plafond de hauteur, puisqu'il n'y a rien d'autre
-    // avec qui partager l'espace).
-    const capped = hero.imgSize === "full" && hasOtherContent;
-    const wrap = doc.createElement("div");
-    wrap.className = "page__hero-media" + (capped ? " page__hero-media--capped" : "");
-    if(hero.mode === "youtube"){
-      wrap.dataset.embedMode = "youtube";
-      const ifr = doc.createElement("iframe");
-      ifr.src = `https://www.youtube.com/embed/${hero.youtubeId}`;
-      ifr.title = "Vidéo YouTube";
-      ifr.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-      ifr.allowFullscreen = true;
-      wrap.appendChild(ifr);
-    }else if(hero.mode === "itch"){
-      wrap.dataset.embedMode = "itch";
-      const ifr = doc.createElement("iframe");
-      ifr.src = hero.itchUrl;
-      ifr.title = "Jeu itch.io";
-      ifr.allow = "autoplay; fullscreen; gamepad";
-      ifr.allowFullscreen = true;
-      wrap.appendChild(ifr);
-    }else{
-      const v = doc.createElement("video");
-      v.src = hero.src; v.controls = true;
-      v.style.objectPosition = hero.objectPosition || "50% 50%";
-      wrap.appendChild(v);
-    }
-    page.appendChild(wrap);
+  }else{
+    page.style.gridTemplateColumns = `1fr ${pageData.annexWidth || DEFAULT_ANNEX_WIDTH}px`;
+    const annexWrap = doc.createElement("div");
+    annexWrap.className = "page__annex";
+    annexBlocks.forEach(hero => {
+      if(hero.type === "image"){
+        const img = doc.createElement("img");
+        img.className = "page__img";
+        img.src = hero.src || "placeholders/tile-dark.svg";
+        img.alt = "";
+        img.style.objectPosition = hero.objectPosition || "50% 50%";
+        annexWrap.appendChild(img);
+      }else{
+        const wrap = doc.createElement("div");
+        wrap.className = "page__hero-media";
+        if(hero.mode === "youtube"){
+          wrap.dataset.embedMode = "youtube";
+          const ifr = doc.createElement("iframe");
+          ifr.src = `https://www.youtube.com/embed/${hero.youtubeId}`;
+          ifr.title = "Vidéo YouTube";
+          ifr.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+          ifr.allowFullscreen = true;
+          wrap.appendChild(ifr);
+        }else if(hero.mode === "itch"){
+          wrap.dataset.embedMode = "itch";
+          const ifr = doc.createElement("iframe");
+          ifr.src = hero.itchUrl;
+          ifr.title = "Jeu itch.io";
+          ifr.allow = "autoplay; fullscreen; gamepad";
+          ifr.allowFullscreen = true;
+          wrap.appendChild(ifr);
+        }else{
+          const v = doc.createElement("video");
+          v.src = hero.src; v.controls = true;
+          v.style.objectPosition = hero.objectPosition || "50% 50%";
+          wrap.appendChild(v);
+        }
+        annexWrap.appendChild(wrap);
+      }
+    });
+    page.appendChild(annexWrap);
   }
 
   return page;
@@ -1269,7 +1295,7 @@ function renderPageTabs(){
   addTab.textContent = "+ Page";
   addTab.title = "Ajouter une page";
   addTab.addEventListener("click", () => {
-    peState.pages.push({ textAlign:"top", blocks:[BLOCK_DEFS.image.make(), BLOCK_DEFS.title.make(), BLOCK_DEFS.text.make()] });
+    peState.pages.push({ textAlign:"top", annexWidth:DEFAULT_ANNEX_WIDTH, blocks:[{ ...BLOCK_DEFS.image.make(), placement:"annex" }, BLOCK_DEFS.title.make(), BLOCK_DEFS.text.make()] });
     peState.activePage = peState.pages.length - 1;
     renderPanel();
     syncSiteNavigation();
@@ -1391,6 +1417,28 @@ function renderCanvas(){
     alignRow.appendChild(b);
   });
   peCanvas.appendChild(alignRow);
+
+  const hasAnnex = page.blocks.some(b => (b.type === "image" || b.type === "video") && b.placement === "annex");
+  if(hasAnnex){
+    const widthRow = document.createElement("div");
+    widthRow.className = "pe-annex-width-row";
+    const label = document.createElement("span");
+    label.className = "pe-annex-width-label";
+    const widthNow = page.annexWidth || DEFAULT_ANNEX_WIDTH;
+    label.textContent = `Largeur de l'annexe : ${widthNow}px`;
+    const slider = document.createElement("input");
+    slider.type = "range"; slider.min = "180"; slider.max = "640"; slider.step = "10";
+    slider.value = String(widthNow);
+    slider.className = "pe-annex-width-slider";
+    slider.addEventListener("input", () => {
+      page.annexWidth = Number(slider.value);
+      label.textContent = `Largeur de l'annexe : ${page.annexWidth}px`;
+      liveUpdateSite();
+    });
+    widthRow.appendChild(label);
+    widthRow.appendChild(slider);
+    peCanvas.appendChild(widthRow);
+  }
 
   if(page.blocks.length === 0){
     const empty = document.createElement("div");
@@ -1797,31 +1845,83 @@ function renderRichTextEditor(block){
   return wrap;
 }
 
+// Dans le texte (page__photo/page__video, parmi les autres modules) ou
+// en annexe (colonne latérale, qui peut empiler plusieurs médias) — un
+// choix explicite par bloc, plutôt que "le premier gagne" comme avant.
+function renderPlacementControl(block){
+  const doc = document;
+  const wrap = doc.createElement("div");
+  wrap.className = "pe-size-group";
+  [["text","Dans le texte"], ["annex","En annexe"]].forEach(([key, label]) => {
+    const b = doc.createElement("button");
+    b.type = "button";
+    b.className = "pe-size-btn" + ((block.placement || "text") === key ? " is-active" : "");
+    b.textContent = label;
+    b.title = key === "annex" ? "Colonne latérale — plusieurs médias en annexe s'empilent verticalement" : "Au fil du texte, avec le reste des modules";
+    b.addEventListener("click", () => { block.placement = key; liveUpdateSite(); renderPanel(); });
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
 const REFRAME_POINTS = [
   ["0% 0%","↖"], ["50% 0%","↑"], ["100% 0%","↗"],
   ["0% 50%","←"], ["50% 50%","•"], ["100% 50%","→"],
   ["0% 100%","↙"], ["50% 100%","↓"], ["100% 100%","↘"],
 ];
 
+// Cadrage : glisser directement sur l'aperçu déplace le point de focus en
+// continu (plus intuitif qu'une simple grille de 9 points), la grille
+// reste à côté comme raccourcis pour les cas simples (centré, coins...).
 function renderReframeControl(block, previewEl){
   const doc = document;
   const wrap = doc.createElement("div");
   wrap.className = "pe-reframe";
+
+  function setPosition(pos){
+    block.objectPosition = pos;
+    if(previewEl) previewEl.style.objectPosition = pos;
+    grid.querySelectorAll(".pe-reframe-dot").forEach(d => d.classList.toggle("is-active", d.dataset.pos === pos));
+  }
+
+  if(previewEl){
+    previewEl.classList.add("pe-reframe-draggable");
+    previewEl.title = "Glisser pour cadrer";
+    let dragging = false;
+    const posFromEvent = (e) => {
+      const rect = previewEl.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      return `${Math.round(x * 100)}% ${Math.round(y * 100)}%`;
+    };
+    previewEl.addEventListener("pointerdown", (e) => {
+      dragging = true;
+      previewEl.setPointerCapture(e.pointerId);
+      setPosition(posFromEvent(e));
+    });
+    previewEl.addEventListener("pointermove", (e) => {
+      if(!dragging) return;
+      setPosition(posFromEvent(e));
+    });
+    const stopDrag = () => {
+      if(!dragging) return;
+      dragging = false;
+      liveUpdateSite();
+    };
+    previewEl.addEventListener("pointerup", stopDrag);
+    previewEl.addEventListener("pointercancel", stopDrag);
+  }
+
   const grid = doc.createElement("div");
   grid.className = "pe-reframe-grid";
   REFRAME_POINTS.forEach(([pos, icon]) => {
     const b = doc.createElement("button");
     b.type = "button";
+    b.dataset.pos = pos;
     b.className = "pe-reframe-dot" + ((block.objectPosition || "50% 50%") === pos ? " is-active" : "");
     b.textContent = icon;
     b.title = "Centrer le cadrage ici";
-    b.addEventListener("click", () => {
-      block.objectPosition = pos;
-      if(previewEl) previewEl.style.objectPosition = pos;
-      grid.querySelectorAll(".pe-reframe-dot").forEach(d => d.classList.remove("is-active"));
-      b.classList.add("is-active");
-      liveUpdateSite();
-    });
+    b.addEventListener("click", () => { setPosition(pos); liveUpdateSite(); });
     grid.appendChild(b);
   });
   wrap.appendChild(grid);
@@ -1890,18 +1990,8 @@ function renderBlockBody(block){
     });
     actions.appendChild(changeBtn);
 
-    const sizeGroup = doc.createElement("div");
-    sizeGroup.className = "pe-size-group";
-    [["small","Petit"], ["normal","Normal"], ["large","Grand"]].forEach(([key, label]) => {
-      const b = doc.createElement("button");
-      b.type = "button";
-      b.className = "pe-size-btn" + ((block.imgSize || "normal") === key ? " is-active" : "");
-      b.textContent = label;
-      b.addEventListener("click", () => { block.imgSize = key; renderPanel(); });
-      sizeGroup.appendChild(b);
-    });
-    actions.appendChild(sizeGroup);
     body.appendChild(actions);
+    body.appendChild(renderPlacementControl(block));
     body.appendChild(renderReframeControl(block, thumb));
     return body;
   }
@@ -1925,17 +2015,7 @@ function renderBlockBody(block){
       body.appendChild(modes);
     }
 
-    const sizeGroup = doc.createElement("div");
-    sizeGroup.className = "pe-size-group";
-    [["half","1/2"], ["twothirds","2/3"], ["full","Pleine largeur"]].forEach(([key, label]) => {
-      const b = doc.createElement("button");
-      b.type = "button";
-      b.className = "pe-size-btn" + ((block.imgSize || "twothirds") === key ? " is-active" : "");
-      b.textContent = label;
-      b.addEventListener("click", () => { block.imgSize = key; liveUpdateSite(); renderPanel(); });
-      sizeGroup.appendChild(b);
-    });
-    body.appendChild(sizeGroup);
+    body.appendChild(renderPlacementControl(block));
 
     if(block.mode === "youtube"){
       const urlInput = doc.createElement("input");
@@ -2157,23 +2237,23 @@ function nextProjectId(doc){
 
 function defaultProjectPages(){
   return [
-    { textAlign:"top", blocks:[
-      { type:"image", src:"placeholders/tile-dark.svg", imgSize:"normal" },
+    { textAlign:"top", annexWidth:DEFAULT_ANNEX_WIDTH, blocks:[
+      { type:"image", src:"placeholders/tile-dark.svg", placement:"annex" },
       { type:"text", style:"accent", fr:"Résumé en une phrase.", en:"One-sentence summary." },
       BLOCK_DEFS.title.make(), BLOCK_DEFS.tags.make(), BLOCK_DEFS.text.make(), BLOCK_DEFS.link.make(),
     ]},
-    { textAlign:"top", blocks:[
-      { type:"image", src:"placeholders/tile-terracotta.svg", imgSize:"normal" },
+    { textAlign:"top", annexWidth:DEFAULT_ANNEX_WIDTH, blocks:[
+      { type:"image", src:"placeholders/tile-terracotta.svg", placement:"annex" },
       { type:"title", fr:"Fonctionnalités clés", en:"Key Features" }, BLOCK_DEFS.list.make(), BLOCK_DEFS.link.make(),
     ]},
-    { textAlign:"top", blocks:[
-      { type:"image", src:"placeholders/tile-sage.svg", imgSize:"normal" },
+    { textAlign:"top", annexWidth:DEFAULT_ANNEX_WIDTH, blocks:[
+      { type:"image", src:"placeholders/tile-sage.svg", placement:"annex" },
       { type:"title", fr:"Mon rôle", en:"My Role" },
       { type:"text", style:"discret", fr:"Équipe · durée", en:"Team · duration" },
       BLOCK_DEFS.list.make(), BLOCK_DEFS.link.make(),
     ]},
-    { textAlign:"top", blocks:[
-      { type:"image", src:"placeholders/tile-dark.svg", imgSize:"normal" },
+    { textAlign:"top", annexWidth:DEFAULT_ANNEX_WIDTH, blocks:[
+      { type:"image", src:"placeholders/tile-dark.svg", placement:"annex" },
       { type:"title", fr:"Résultats", en:"Results" }, BLOCK_DEFS.stats.make(), BLOCK_DEFS.text.make(),
     ]},
   ];

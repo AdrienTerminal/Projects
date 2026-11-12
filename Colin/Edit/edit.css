@@ -364,6 +364,18 @@ body{
 }
 .pe-reframe-dot:hover{ border-color:var(--pe-blue); color:var(--pe-blue); }
 .pe-reframe-dot.is-active{ background:var(--pe-blue); border-color:var(--pe-blue); color:#fff; }
+.pe-reframe-draggable{ cursor:crosshair; touch-action:none; }
+
+/* ---- largeur de l'annexe (curseur en pixels, au niveau de la page) ---- */
+.pe-annex-width-row{
+  grid-column:1 / -1;
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; margin-bottom:2px;
+  background:var(--pe-card); border:2px solid var(--pe-ink); border-radius:10px;
+  width:fit-content;
+}
+.pe-annex-width-label{ font-family:var(--font-mono); font-size:0.72rem; color:var(--pe-ink); white-space:nowrap; }
+.pe-annex-width-slider{ width:160px; accent-color:var(--pe-blue); }
 
 /* ---- texte enrichi (gras + couleur) ---- */
 .pe-richtoolbar{ display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
